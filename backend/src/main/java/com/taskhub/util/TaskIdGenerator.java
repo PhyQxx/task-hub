@@ -20,7 +20,7 @@ public class TaskIdGenerator {
         String dateStr = LocalDate.now().format(DATE_FORMAT);
         String key = KEY_PREFIX + dateStr;
         Long seq = redisTemplate.opsForValue().increment(key);
-        redisTemplate.expire(key, 86400);
+        redisTemplate.expire(key, java.time.Duration.ofSeconds(86400));
         return "TT-" + dateStr + "-" + String.format("%03d", seq);
     }
 
@@ -28,7 +28,7 @@ public class TaskIdGenerator {
         String dateStr = LocalDate.now().format(DATE_FORMAT);
         String key = "PRJ:" + dateStr;
         Long seq = redisTemplate.opsForValue().increment(key);
-        redisTemplate.expire(key, 86400);
+        redisTemplate.expire(key, java.time.Duration.ofSeconds(86400));
         return "PRJ-" + dateStr + "-" + String.format("%03d", seq);
     }
 
@@ -36,7 +36,7 @@ public class TaskIdGenerator {
         String dateStr = LocalDate.now().format(DATE_FORMAT);
         String key = "MS:" + dateStr;
         Long seq = redisTemplate.opsForValue().increment(key);
-        redisTemplate.expire(key, 86400);
+        redisTemplate.expire(key, java.time.Duration.ofSeconds(86400));
         return "MS-" + dateStr + "-" + String.format("%03d", seq);
     }
 
@@ -44,7 +44,7 @@ public class TaskIdGenerator {
         String dateStr = LocalDate.now().format(DATE_FORMAT);
         String key = "WL:" + dateStr;
         Long seq = redisTemplate.opsForValue().increment(key);
-        redisTemplate.expire(key, 86400);
+        redisTemplate.expire(key, java.time.Duration.ofSeconds(86400));
         return "WL-" + dateStr + "-" + String.format("%03d", seq);
     }
 }
