@@ -970,3 +970,42 @@ task-hub/
 ---
 
 *文档版本：v1.0 | 创建日期：2026-04-07 | 作者：PD*
+
+---
+
+## 十二、dhtmlxGantt 参考资料
+
+> 收到生产环境参考代码 `taskGantt.vue`（Hussar系统，2501行），已存入：
+> `/root/.openclaw/workspace-pd/任务舱/reference/taskGantt.vue`
+> 快速参考：`/root/.openclaw/workspace-pd/任务舱/reference/dhtmlxgantt-snippets.md`
+
+### 参考实现亮点
+
+| 功能 | 参考代码位置 |
+|------|------------|
+| `Gantt.getGanttInstance()` 初始化 | mounted() |
+| `ganttInstance.destructor()` 销毁 | beforeDestroy() |
+| `drag_timeline` / `undo` / `tooltip` 插件 | initGantt() |
+| `onBeforeTaskDrag` / `onAfterTaskDrag` | 拖拽保存 |
+| `gantt.parse({data, links})` 数据加载 | — |
+| `ganttInstance.serialize()` 数据序列化 | — |
+| `row_height: 40` / `bar_height: 39` | 固定行高 |
+| `layout: { grid + timeline + scrollbar }` | 双栏布局 |
+
+### 关键配置（来自生产代码）
+
+```javascript
+// 日期格式（与后端交互）
+xml_date: '%Y-%m-%d %H:%i:%s'
+// 步长（分钟）
+time_step: 10
+// 禁止默认行为
+dblclick_create: false
+drag_links: false
+drag_progress: false
+// 拖拽移动（开启）
+drag_move: this.dragMove
+// 固定行高
+row_height: 40
+bar_height: 39
+```
