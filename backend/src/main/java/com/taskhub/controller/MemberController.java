@@ -1,0 +1,34 @@
+package com.taskhub.controller;
+
+import com.taskhub.entity.Member;
+import com.taskhub.service.MemberService;
+import com.taskhub.vo.ApiResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/members")
+@RequiredArgsConstructor
+public class MemberController {
+
+    private final MemberService memberService;
+
+    @GetMapping
+    public ApiResponse<List<Member>> list() {
+        return ApiResponse.success(memberService.list());
+    }
+
+    @GetMapping("/{memberId}")
+    public ApiResponse<Member> get(@PathVariable String memberId) {
+        Member member = memberService.getById(memberId);
+        if (member == null) return ApiResponse.error(404, "Member not found");
+        return ApiResponse.success(member);
+    }
+
+    @GetMapping("/role/{role}")
+    public ApiResponse<List<Member>> getByRole(@PathVariable String role) {
+        return ApiResponse.success(memberService.getByRole(role));
+    }
+}
