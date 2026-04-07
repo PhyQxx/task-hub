@@ -1,0 +1,79 @@
+/* task-hub 全局样式 - 飞书风格 */
+:root {
+  --surface-1: #ffffff;
+  --surface-2: #f0f4ff;
+  --surface-3: #ffffff;
+  --surface-4: #e8f0ff;
+  --accent: #3370ff;
+  --accent-hover: #2957e0;
+  --accent-light: rgba(51, 112, 255, 0.08);
+  --text: #1a1a1a;
+  --text-secondary: #646464;
+  --text-placeholder: #bfbfbf;
+  --border: rgba(51, 112, 255, 0.15);
+  --border-light: rgba(51, 112, 255, 0.08);
+  --shadow-sm: 0 1px 4px rgba(51, 112, 255, 0.06);
+  --shadow-md: 0 4px 16px rgba(51, 112, 255, 0.1);
+  --shadow-lg: 0 8px 32px rgba(51, 112, 255, 0.14);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-family);
+  background: var(--surface-2);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--surface-2);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(51, 112, 255, 0.2);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(51, 112, 255, 0.4);
+}
+
+/* 通用工具类 */
+.text-accent { color: var(--accent); }
+.text-secondary { color: var(--text-secondary); }
+.bg-surface-1 { background: var(--surface-1); }
+.bg-surface-2 { background: var(--surface-2); }
+.border-accent { border: 1px solid var(--border); }
+
+/* Element Plus 覆盖 - 飞书风格 */
+.el-button--primary {
+  --el-button-bg-color: var(--accent);
+  --el-button-border-color: var(--accent);
+  --el-button-hover-bg-color: var(--accent-hover);
+  --el-button-hover-border-color: var(--accent-hover);
+  background-color: var(--accent) !important;
+  border-color: var(--accent) !important;
+}
+.el-button--primary:hover {
+  background-color: var(--accent-hover) !important;
+  border-color: var(--accent-hover) !important;
+}
