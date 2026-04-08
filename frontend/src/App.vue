@@ -443,9 +443,9 @@ onMounted(async () => {
   border-radius: 6px;
   font-weight: 590;
 }
-.role-admin { background: rgba(167,139,250,0.2); color: #A78BFA; }
+.role-admin { background: rgba(167,139,250,0.15); color: #7c5af5; }
 .role-member { background: var(--primary-bg); color: var(--primary); }
-.role-viewer { background: rgba(148,163,184,0.15); color: var(--text-faint); }
+.role-viewer { background: var(--surface-4); color: var(--text-muted); }
 
 /* Modal fields */
 .modal-field { margin-bottom: 10px; }

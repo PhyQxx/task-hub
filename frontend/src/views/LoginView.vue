@@ -1,54 +1,82 @@
 <template>
   <div class="login-page">
-    <div class="login-card">
-      <div class="login-logo">📋 任务舱</div>
-      <div class="login-subtitle">Team Task Tracker</div>
+    <!-- 左侧品牌区 -->
+    <div class="login-brand">
+      <div class="brand-content">
+        <div class="brand-logo">📋 任务舱</div>
+        <div class="brand-slogan">让团队协作更高效</div>
+        <div class="brand-features">
+          <div class="feature-item">
+            <span class="feature-icon">📊</span>
+            <span>甘特图 · 看板 · 泳道</span>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">👥</span>
+            <span>成员管理 · 角色权限</span>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">⚡</span>
+            <span>智能排程 · 负载均衡</span>
+          </div>
+        </div>
+      </div>
+      <div class="brand-version">v2.0 · 飞书风格</div>
+    </div>
 
-      <el-form class="login-form" @submit.prevent="handleLogin" :model="form" :rules="rules" ref="formRef">
-        <el-form-item prop="phone">
-          <el-input
-            v-model="form.phone"
-            placeholder="手机号"
-            size="large"
-            prefix-icon="📱"
-            clearable
-          />
-        </el-form-item>
+    <!-- 右侧登录区 -->
+    <div class="login-main">
+      <div class="login-card">
+        <div class="login-header">
+          <h1 class="login-title">登录任务舱</h1>
+          <p class="login-subtitle">使用你的账号登录</p>
+        </div>
 
-        <el-form-item prop="password">
-          <el-input
-            v-model="form.password"
-            type="password"
-            placeholder="密码"
-            size="large"
-            prefix-icon="🔒"
-            show-password
-            @keyup.enter="handleLogin"
-          />
-        </el-form-item>
+        <el-form class="login-form" @submit.prevent="handleLogin" :model="form" :rules="rules" ref="formRef">
+          <el-form-item prop="phone">
+            <label class="field-label">手机号</label>
+            <el-input
+              v-model="form.phone"
+              placeholder="请输入手机号"
+              size="large"
+              clearable
+            />
+          </el-form-item>
 
-        <el-form-item>
-          <el-button
-            type="primary"
-            size="large"
-            :loading="loading"
-            class="login-btn"
-            @click="handleLogin"
-          >
-            {{ loading ? '登录中...' : '登录' }}
-          </el-button>
-        </el-form-item>
-      </el-form>
+          <el-form-item prop="password">
+            <label class="field-label">密码</label>
+            <el-input
+              v-model="form.password"
+              type="password"
+              placeholder="请输入密码"
+              size="large"
+              show-password
+              @keyup.enter="handleLogin"
+            />
+          </el-form-item>
 
-      <div class="login-footer">
-        <span>还没有账号？</span>
-        <a href="#" @click.prevent="showRegister = true">立即注册</a>
+          <el-form-item>
+            <el-button
+              type="primary"
+              size="large"
+              :loading="loading"
+              class="login-btn"
+              @click="handleLogin"
+            >
+              {{ loading ? '登录中...' : '登录' }}
+            </el-button>
+          </el-form-item>
+        </el-form>
+
+        <div class="login-footer">
+          <span>还没有账号？</span>
+          <a href="#" @click.prevent="showRegister = true">立即注册 →</a>
+        </div>
       </div>
     </div>
 
     <!-- 注册弹窗 -->
-    <el-dialog v-model="showRegister" title="注册账号" width="420px" :close-on-click-modal="false">
-      <el-form :model="registerForm" :rules="registerRules" ref="registerFormRef" label-width="80px">
+    <el-dialog v-model="showRegister" title="注册账号" width="420px" :close-on-click-modal="false" destroy-on-close>
+      <el-form :model="registerForm" :rules="registerRules" ref="registerFormRef" label-width="70px">
         <el-form-item label="手机号" prop="phone">
           <el-input v-model="registerForm.phone" placeholder="手机号" clearable />
         </el-form-item>
@@ -56,7 +84,7 @@
           <el-input v-model="registerForm.nickname" placeholder="你的昵称" clearable />
         </el-form-item>
         <el-form-item label="密码" prop="password">
-          <el-input v-model="registerForm.password" type="password" placeholder="密码" show-password />
+          <el-input v-model="registerForm.password" type="password" placeholder="密码（至少6位）" show-password />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -91,7 +119,10 @@ const rules = {
 const registerRules = {
   phone: [{ required: true, message: '请输入手机号', trigger: 'blur' }],
   nickname: [{ required: true, message: '请输入昵称', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }, { min: 6, message: '密码至少6位', trigger: 'blur' }],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    { min: 6, message: '密码至少6位', trigger: 'blur' }
+  ],
 }
 
 async function handleLogin() {
@@ -140,67 +171,131 @@ async function handleRegister() {
 
 <style scoped>
 .login-page {
-  min-height: 100vh;
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+/* 左侧品牌区 */
+.login-brand {
+  width: 420px;
+  flex-shrink: 0;
+  background: var(--primary);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 40px;
+  color: #fff;
+}
+
+.brand-content { margin-top: 40px; }
+
+.brand-logo {
+  font-size: 32px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 8px;
+}
+
+.brand-slogan {
+  font-size: 16px;
+  color: rgba(255,255,255,0.75);
+  margin-bottom: 48px;
+}
+
+.brand-features { display: flex; flex-direction: column; gap: 16px; }
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: rgba(255,255,255,0.9);
+}
+
+.feature-icon { font-size: 18px; }
+
+.brand-version {
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+}
+
+.login-main {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #0d0d10;
+  background: var(--bg);
+  padding: 40px;
 }
 
 .login-card {
-  background: var(--surface-1, #16161a);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 16px;
-  padding: 48px 40px;
   width: 400px;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+  max-width: 100%;
 }
 
-.login-logo {
-  font-size: 28px;
-  font-weight: 700;
-  text-align: center;
-  color: #fff;
-  margin-bottom: 4px;
+.login-header { margin-bottom: 32px; }
+
+.login-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+  letter-spacing: -0.3px;
 }
 
 .login-subtitle {
-  text-align: center;
-  color: var(--text-secondary, #62666d);
-  font-size: 13px;
-  margin-bottom: 36px;
+  font-size: 14px;
+  color: var(--text-secondary);
 }
 
-.login-form {
-  margin-top: 8px;
+.login-form { margin-top: 8px; }
+
+.field-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
 }
 
 .login-btn {
   width: 100%;
-  height: 44px;
+  height: 42px;
   font-size: 15px;
-  background: var(--primary, #7170ff) !important;
-  border-color: var(--primary, #7170ff) !important;
+  font-weight: 500;
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+  letter-spacing: 0.3px;
 }
 
 .login-btn:hover {
-  opacity: 0.9;
+  background: var(--primary-hover) !important;
+  border-color: var(--primary-hover) !important;
 }
 
 .login-footer {
   text-align: center;
   margin-top: 20px;
   font-size: 13px;
-  color: var(--text-secondary, #62666d);
+  color: var(--text-secondary);
 }
 
 .login-footer a {
-  color: var(--primary, #7170ff);
+  color: var(--primary);
   text-decoration: none;
+  font-weight: 500;
   margin-left: 4px;
 }
 
 .login-footer a:hover {
   text-decoration: underline;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .login-brand { display: none; }
+  .login-main { padding: 20px; }
 }
 </style>

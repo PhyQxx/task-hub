@@ -125,7 +125,13 @@ async function initGantt() {
   await ganttStore.fetchGanttData(projectId)
   const { tasks, links } = ganttStore.ganttData
 
-  gantt.parse({ data: tasks || [], links: links || [] })
+  // dhtmlx-gantt v9 只接受数字类型：0=FS, 1=SS, 2=FF, 3=SF
+  const numericLinks = (links || []).map((l: any) => ({
+    ...l,
+    type: { FS: 0, SS: 1, FF: 2, SF: 3 }[String(l.type)] ?? 0,
+  }))
+
+  gantt.parse({ data: tasks || [], links: numericLinks })
   ganttInited = true
 }
 
@@ -181,7 +187,7 @@ onMounted(async () => {
   // 链接创建
   gantt.attachEvent('onAfterLinkAdd', async (id: string, link: any) => {
     try {
-      await taskApi.dependencies.add(link.target, link.source, 'FS')
+      await taskApi.dependencies.add(link.target, link.source, {0:'FS',1:'SS',2:'FF',3:'SF'}[String(link.type)] ?? 'FS')
     } catch (err) {
       console.error('添加依赖失败', err)
     }
