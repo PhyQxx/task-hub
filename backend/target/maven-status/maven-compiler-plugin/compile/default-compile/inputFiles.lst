@@ -8,6 +8,7 @@
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/service/ProjectService.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/dto/WorkLogCreateDTO.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/dto/TaskUpdateDTO.java
+/root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/config/SecurityConfig.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/vo/ReorderResultVO.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/vo/BatchScheduleResultVO.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/service/WorkLogService.java
@@ -19,14 +20,17 @@
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/util/TopologicalSort.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/vo/GanttDataVO.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/entity/TaskHistory.java
+/root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/config/JwtAuthenticationFilter.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/controller/GanttController.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/service/ScheduleService.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/mapper/TaskHistoryMapper.java
+/root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/controller/AuthController.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/controller/MemberController.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/vo/GanttLinkVO.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/mapper/ProjectMemberMapper.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/service/TaskService.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/dto/MilestoneCreateDTO.java
+/root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/util/JwtUtils.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/vo/MemberLoadTrendVO.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/mapper/TaskMapper.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/entity/Task.java

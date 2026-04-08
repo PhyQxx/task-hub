@@ -11,12 +11,15 @@ public class Member {
     @TableId(type = IdType.AUTO)
     private Long id;
 
+    @TableField("member_id")
     private String memberId;
     private String nickname;
     private String role;
     private String skills;
     private Float weeklyCapacity;
     private Integer isActive;
+    private String phone;
+    private String password;
     private String avatar;
     private String email;
 

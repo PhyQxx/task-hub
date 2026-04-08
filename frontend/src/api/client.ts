@@ -9,11 +9,12 @@ const client: AxiosInstance = axios.create({
   headers: { 'Content-Type': 'application/json' }
 })
 
-// 请求拦截器
+// 请求拦截器：附加 JWT token
 client.interceptors.request.use(config => {
-  // 可在此附加用户 token
-  const userId = localStorage.getItem('userId') || 'system'
-  config.headers.set('X-User-Id', userId)
+  const token = localStorage.getItem('token')
+  if (token) {
+    config.headers.set('Authorization', `Bearer ${token}`)
+  }
   return config
 })
 
@@ -21,6 +22,12 @@ client.interceptors.request.use(config => {
 client.interceptors.response.use(
   res => res.data as ApiResponse<unknown>,
   err => {
+    // 401 未授权，跳转登录
+    if (err.response?.status === 401) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('userId')
+      window.location.href = '/login'
+    }
     const msg = err.response?.data?.message || err.message || '网络错误'
     return Promise.reject(new Error(msg))
   }

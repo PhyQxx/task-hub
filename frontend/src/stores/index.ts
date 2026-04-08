@@ -1,3 +1,4 @@
+export { useAuthStore } from './auth'
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Project, Task, Member, WorkLog, GanttDataVO } from '@/types'
@@ -74,7 +75,11 @@ export const useGanttStore = defineStore('gantt', () => {
     loading.value = true
     try {
       const res = await ganttApi.getData(projectId)
-      ganttData.value = res.data || { tasks: [], links: [], milestones: [] }
+      ganttData.value = {
+        tasks: (res.data as any)?.data || [],
+        links: (res.data as any)?.links || [],
+        milestones: (res.data as any)?.milestones || [],
+      }
     } finally {
       loading.value = false
     }

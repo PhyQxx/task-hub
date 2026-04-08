@@ -1,166 +1,244 @@
 <template>
   <div class="kanban-view">
-    <div class="kanban-header">
-      <span class="project-name">{{ projectStore.currentProject?.name || '请选择项目' }}</span>
-      <el-button type="primary" size="small" @click="showCreate = true">+ 新建任务</el-button>
+    <!-- Stats row -->
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-label">总任务</div><div class="stat-value">{{ taskStore.tasks.length }}</div></div>
+      <div class="stat-card"><div class="stat-label">进行中</div><div class="stat-value" style="color:var(--primary)">{{ countByStatus('IN_PROGRESS') }}</div></div>
+      <div class="stat-card"><div class="stat-label">已完成</div><div class="stat-value" style="color:var(--success)">{{ countByStatus('DONE') }}</div></div>
+      <div class="stat-card"><div class="stat-label">已阻塞</div><div class="stat-value" style="color:var(--danger)">{{ countByStatus('BLOCKED') }}</div></div>
     </div>
 
-    <div v-loading="taskStore.loading" class="kanban-board">
-      <div
-        v-for="col in columns"
-        :key="col.key"
-        class="kanban-column"
-      >
-        <div class="column-header" :style="{ borderTopColor: col.color }">
-          <span class="column-title">{{ col.label }}</span>
-          <span class="column-count">{{ getTasksByStatus(col.key).length }}</span>
-        </div>
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <button class="btn btn-ghost">今天</button>
+      <button class="btn btn-ghost">周</button>
+      <button class="btn btn-primary" style="font-size:12px">月</button>
+      <button class="btn btn-ghost">季</button>
+      <span class="toolbar-info">{{ projectStore.currentProject?.name || '所有项目' }} · {{ new Date().getMonth()+1 }}月</span>
+    </div>
 
-        <div class="column-body">
+    <!-- Board -->
+    <div class="kanban-board">
+      <div v-for="col in columns" :key="col.key" class="kanban-col">
+        <div class="kanban-col-header">
+          <span class="status-dot" :class="'status-' + col.dotClass"></span>
+          <span class="kanban-col-title">{{ col.label }}</span>
+          <span class="kanban-col-count">{{ getTasks(col.key).length }}</span>
+        </div>
+        <div class="kanban-cards">
           <div
-            v-for="task in getTasksByStatus(col.key)"
+            v-for="task in getTasks(col.key)"
             :key="task.id"
             class="kanban-card"
+            :class="{ 'blocked-card': col.key === 'BLOCKED' }"
             @click="openTask(task)"
+            @contextmenu.prevent="showCtxMenu($event, task)"
           >
-            <div class="card-title">{{ task.title }}</div>
-            <div class="card-meta">
-              <el-tag v-if="task.priority === 'URGENT'" type="danger" size="small" effect="dark">紧急</el-tag>
-              <el-tag v-else-if="task.priority === 'HIGH'" type="warning" size="small">高</el-tag>
-              <el-tag v-else-if="task.priority === 'MEDIUM'" size="small">中</el-tag>
-              <el-tag v-else size="small" effect="plain">低</el-tag>
-              <span v-if="task.assigneeName" class="assignee">
-                <el-avatar size="small" :style="{ background: 'var(--accent)', fontSize: '10px' }">
-                  {{ task.assigneeName.slice(0, 1) }}
-                </el-avatar>
+            <div class="kanban-card-title">{{ task.title }}</div>
+            <div class="kanban-card-meta">
+              <span class="tag" :class="priorityTag(task.priority)">{{ priorityLabel(task.priority) }}</span>
+              <span v-if="task.assigneeName" class="assignee-chip">
+                <span class="av-dot" :class="assigneeAvClass(task.assigneeName)"></span>
                 {{ task.assigneeName }}
               </span>
-            </div>
-            <div v-if="task.endDate" class="card-date">
-              <span :class="{ overdue: isOverdue(task.endDate) }">
+              <span v-if="task.endDate" style="margin-left:auto;font-size:10px;color:var(--text-muted)">
                 {{ task.endDate }}
               </span>
             </div>
           </div>
-
-          <div v-if="!getTasksByStatus(col.key).length" class="column-empty">
-            暂无任务
-          </div>
+          <div v-if="!getTasks(col.key).length" class="kanban-empty">暂无任务</div>
         </div>
       </div>
     </div>
 
-    <!-- 新建/编辑任务弹窗 -->
-    <el-dialog v-model="showCreate" :title="editingTask ? '编辑任务' : '新建任务'" width="520px" :append-to-body="true">
-      <el-form :model="taskForm" label-width="80px">
-        <el-form-item label="任务名称">
-          <el-input v-model="taskForm.title" placeholder="请输入任务名称" />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="taskForm.status">
-            <el-option v-for="col in columns" :key="col.key" :label="col.label" :value="col.key" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="负责人">
-          <el-select v-model="taskForm.assigneeId" placeholder="选择负责人" clearable>
-            <el-option v-for="m in memberStore.members" :key="m.id" :label="m.name" :value="m.id" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="优先级">
-          <el-select v-model="taskForm.priority">
-            <el-option label="低" value="LOW" />
-            <el-option label="中" value="MEDIUM" />
-            <el-option label="高" value="HIGH" />
-            <el-option label="紧急" value="URGENT" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="截止日期">
-          <el-date-picker v-model="taskForm.endDate" type="date" format="YYYY-MM-DD" value-format="YYYY-MM-DD" />
-        </el-form-item>
-        <el-form-item label="描述">
-          <el-input v-model="taskForm.description" type="textarea" :rows="3" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="showCreate = false">取消</el-button>
-        <el-button v-if="editingTask" type="danger" @click="handleDelete">删除</el-button>
-        <el-button type="primary" @click="handleSave">{{ editingTask ? '保存' : '创建' }}</el-button>
-      </template>
-    </el-dialog>
+    <!-- Edit Task Modal -->
+    <div v-if="showEdit" class="modal-overlay" @click.self="showEdit = false">
+      <div class="modal" style="width:520px">
+        <div class="modal-title">{{ editingTask ? '编辑任务' : '+ 新建任务' }}</div>
+        <div class="modal-field">
+          <label class="form-label">任务名称 *</label>
+          <input class="form-input" v-model="form.title" placeholder="请输入任务名称" />
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="modal-field">
+            <label class="form-label">状态</label>
+            <select class="form-input" v-model="form.status">
+              <option v-for="col in columns" :key="col.key" :value="col.key">{{ col.label }}</option>
+            </select>
+          </div>
+          <div class="modal-field">
+            <label class="form-label">负责人</label>
+            <select class="form-input" v-model="form.assigneeId">
+              <option value="">未分配</option>
+              <option v-for="m in memberStore.members" :key="m.id" :value="m.id">{{ m.name }}</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="modal-field">
+            <label class="form-label">优先级</label>
+            <select class="form-input" v-model="form.priority">
+              <option value="LOW">🔵 低</option>
+              <option value="MEDIUM">🟡 中</option>
+              <option value="HIGH">🟠 高</option>
+              <option value="URGENT">🔴 紧急</option>
+            </select>
+          </div>
+          <div class="modal-field">
+            <label class="form-label">截止日期</label>
+            <input class="form-input" type="date" v-model="form.endDate" />
+          </div>
+        </div>
+        <div class="modal-field">
+          <label class="form-label">描述</label>
+          <textarea class="form-textarea" v-model="form.description" style="height:60px"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button v-if="editingTask" class="btn btn-ghost" style="color:var(--danger)" @click="handleDelete">删除</button>
+          <div style="flex:1"></div>
+          <button class="btn btn-ghost" @click="showEdit = false">取消</button>
+          <button class="btn btn-primary" @click="handleSave">{{ editingTask ? '保存' : '创建' }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div
+      v-if="ctxVisible"
+      class="ctx-menu show"
+      :style="{ left: ctxX + 'px', top: ctxY + 'px' }"
+      @click.stop
+    >
+      <div class="ctx-menu-item" @click="ctxChangeStatus('TODO')">○ 待办</div>
+      <div class="ctx-menu-item" @click="ctxChangeStatus('IN_PROGRESS')">◐ 进行中</div>
+      <div class="ctx-menu-item" @click="ctxChangeStatus('DONE')">✓ 已完成</div>
+      <div class="ctx-menu-item" @click="ctxChangeStatus('BLOCKED')">⚠ 已阻塞</div>
+      <div class="ctx-menu-sep"></div>
+      <div class="ctx-menu-item" @click="ctxEdit">✏️ 编辑</div>
+      <div class="ctx-menu-sep"></div>
+      <div class="ctx-menu-item danger" @click="ctxDelete">🗑 删除</div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useProjectStore, useTaskStore, useMemberStore } from '@/stores'
 import type { Task } from '@/types'
-import dayjs from 'dayjs'
+import { ElMessage } from 'element-plus'
 
 const projectStore = useProjectStore()
 const taskStore = useTaskStore()
 const memberStore = useMemberStore()
 
 const columns = [
-  { key: 'TODO' as const, label: '待办', color: '#bfbfbf' },
-  { key: 'IN_PROGRESS' as const, label: '进行中', color: '#3370ff' },
-  { key: 'BLOCKED' as const, label: '已阻塞', color: '#ff4d4f' },
-  { key: 'DONE' as const, label: '已完成', color: '#52c41a' },
+  { key: 'TODO', label: '待处理', dotClass: 'pending' },
+  { key: 'IN_PROGRESS', label: '进行中', dotClass: 'progress' },
+  { key: 'DONE', label: '已完成', dotClass: 'done' },
+  { key: 'BLOCKED', label: '已阻塞', dotClass: 'blocked' },
 ]
 
-function getTasksByStatus(status: Task['status']) {
+function getTasks(status: string) {
   return taskStore.tasks.filter(t => t.status === status)
 }
 
-function isOverdue(date: string) {
-  return dayjs(date).isBefore(dayjs(), 'day')
+function countByStatus(status: string) {
+  return taskStore.tasks.filter(t => t.status === status).length
 }
 
-const showCreate = ref(false)
+function priorityTag(p: string) {
+  return { URGENT: 'tag-p0', HIGH: 'tag-p1', MEDIUM: 'tag-p2', LOW: 'tag-p2' }[p] || 'tag-p2'
+}
+function priorityLabel(p: string) {
+  return { URGENT: 'P0', HIGH: 'P1', MEDIUM: 'P2', LOW: 'P2' }[p] || 'P2'
+}
+function assigneeAvClass(name: string) {
+  const map: Record<string, string> = { 'Dev': 'av-dev', 'Des': 'av-des', 'QA': 'av-qa', 'Ops': 'av-ops', 'PD': 'av-pm' }
+  return map[name] || 'av-dev'
+}
+
+// Edit modal
+const showEdit = ref(false)
 const editingTask = ref<Task | null>(null)
+const form = ref({ title:'', status:'TODO', assigneeId:'', priority:'MEDIUM', endDate:'', description:'' })
 
-const taskForm = ref({
-  title: '',
-  status: 'TODO' as Task['status'],
-  assigneeId: '',
-  priority: 'MEDIUM' as Task['priority'],
-  endDate: '',
-  description: '',
-})
-
-function openTask(task: Task) {
-  editingTask.value = task
-  taskForm.value = {
+function openTask(task?: Task) {
+  editingTask.value = task || null
+  form.value = task ? {
     title: task.title,
     status: task.status,
     assigneeId: task.assigneeId || '',
     priority: task.priority,
     endDate: task.endDate || '',
     description: task.description || '',
-  }
-  showCreate.value = true
+  } : { title:'', status:'TODO', assigneeId:'', priority:'MEDIUM', endDate:'', description:'' }
+  showEdit.value = true
 }
 
 async function handleSave() {
+  if (!form.value.title) { ElMessage.warning('请输入任务名称'); return }
   const projectId = projectStore.currentProjectId
-  if (!projectId || !taskForm.value.title) return
-
-  if (editingTask.value) {
-    await taskStore.updateTask(editingTask.value.id, taskForm.value)
-  } else {
-    await taskStore.createTask({ projectId, ...taskForm.value })
+  if (!projectId) { ElMessage.warning('请先选择项目'); return }
+  try {
+    if (editingTask.value) {
+      await taskStore.updateTask(editingTask.value.id, { projectId, ...form.value })
+    } else {
+      await taskStore.createTask({ projectId, ...form.value })
+    }
+    showEdit.value = false
+    await taskStore.fetchTasks(projectId)
+  } catch(e) {
+    ElMessage.error('保存失败')
   }
-  showCreate.value = false
-  editingTask.value = null
-  await taskStore.fetchTasks(projectId)
 }
 
 async function handleDelete() {
   if (!editingTask.value) return
-  await taskStore.deleteTask(editingTask.value.id)
-  showCreate.value = false
-  editingTask.value = null
+  try {
+    await taskStore.deleteTask(editingTask.value.id)
+    showEdit.value = false
+    await taskStore.fetchTasks(projectStore.currentProjectId)
+  } catch(e) {
+    ElMessage.error('删除失败')
+  }
+}
+
+// Context menu
+const ctxVisible = ref(false)
+const ctxX = ref(0)
+const ctxY = ref(0)
+const ctxTask = ref<Task | null>(null)
+
+function showCtxMenu(e: MouseEvent, task: Task) {
+  ctxTask.value = task
+  ctxX.value = Math.min(e.clientX, window.innerWidth - 200)
+  ctxY.value = Math.min(e.clientY, window.innerHeight - 300)
+  ctxVisible.value = true
+}
+
+function hideCtx() { ctxVisible.value = false }
+
+async function ctxChangeStatus(status: string) {
+  if (!ctxTask.value) return
+  await taskStore.updateTask(ctxTask.value.id, { status } as any)
+  hideCtx()
   await taskStore.fetchTasks(projectStore.currentProjectId)
 }
+
+function ctxEdit() {
+  if (!ctxTask.value) return
+  openTask(ctxTask.value)
+  hideCtx()
+}
+
+async function ctxDelete() {
+  if (!ctxTask.value) return
+  await taskStore.deleteTask(ctxTask.value.id)
+  hideCtx()
+  await taskStore.fetchTasks(projectStore.currentProjectId)
+}
+
+document.addEventListener('click', hideCtx)
 
 watch(() => projectStore.currentProjectId, async (id) => {
   if (id) await taskStore.fetchTasks(id)
@@ -172,110 +250,123 @@ watch(() => projectStore.currentProjectId, async (id) => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--surface-2);
-  padding: 16px;
-  gap: 12px;
+  padding: 24px;
+  gap: 16px;
+  overflow: auto;
 }
-.kanban-header {
+
+/* Stats */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 160px);
+  gap: 8px;
+}
+
+/* Toolbar */
+.toolbar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  background: var(--surface-1);
-  padding: 12px 16px;
-  border-radius: var(--radius-md);
+  gap: 6px;
+  flex-wrap: wrap;
 }
-.project-name {
-  font-weight: 600;
-  font-size: 15px;
+.toolbar-info {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-faint);
+  margin-left: auto;
 }
+
+/* Board */
 .kanban-board {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  align-items: start;
 }
-.kanban-column {
-  background: var(--surface-1);
+.kanban-col {
+  background: var(--surface-3);
   border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  min-height: 400px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
-.column-header {
+.kanban-col-header {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 14px;
-  border-top: 3px solid;
-  background: var(--surface-1);
 }
-.column-title {
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--text);
-}
-.column-count {
-  background: var(--surface-2);
-  color: var(--accent);
-  border-radius: 10px;
-  padding: 1px 7px;
+.kanban-col-title { font-size: 13px; font-weight: 590; }
+.kanban-col-count {
   font-size: 11px;
-  font-weight: 600;
+  background: rgba(0,0,0,0.06);
+  padding: 2px 7px;
+  border-radius: 6px;
+  color: var(--text-faint);
 }
-.column-body {
+.kanban-cards {
   flex: 1;
-  overflow-y: auto;
   padding: 8px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  overflow-y: auto;
+  max-height: calc(100vh - 340px);
 }
 .kanban-card {
-  background: var(--surface-3);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
-  padding: 12px;
+  background: var(--surface-4);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  border: 1px solid var(--border-strong);
   cursor: pointer;
-  transition: box-shadow 0.2s, border-color 0.2s;
+  transition: all 0.2s;
 }
-.kanban-card:hover {
-  border-color: var(--accent);
-  box-shadow: var(--shadow-sm);
-}
-.card-title {
+.kanban-card:hover { background: var(--surface-5); }
+.blocked-card { border-left: 3px solid var(--danger); }
+.kanban-card-title {
   font-size: 13px;
-  color: var(--text);
-  margin-bottom: 8px;
+  font-weight: 400;
+  margin-bottom: 6px;
   line-height: 1.4;
+  color: var(--text-secondary);
 }
-.card-meta {
+.kanban-card-meta {
   display: flex;
   align-items: center;
   gap: 6px;
+  font-size: 11px;
   flex-wrap: wrap;
 }
-.assignee {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-.card-date {
-  margin-top: 6px;
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-.overdue {
-  color: #ff4d4f;
-  font-weight: 600;
-}
-.column-empty {
+.kanban-empty {
   text-align: center;
   padding: 24px 0;
-  color: var(--text-placeholder);
+  color: var(--text-faint);
   font-size: 13px;
 }
+
+/* Assignee avatar dot */
+.av-dot {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+.av-dev { background: #34D399; }
+.av-des { background: #F472B6; }
+.av-qa { background: #FBBF24; }
+.av-ops { background: #60A5FA; }
+.av-pm { background: #818CF8; }
+
+/* Modal */
+.modal-field { margin-bottom: 10px; }
+.modal-actions { display: flex; gap: 8px; align-items: center; margin-top: 14px; }
 </style>

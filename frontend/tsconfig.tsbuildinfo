@@ -1,0 +1,1 @@
+{"root":["./src/main.ts","./src/api/client.ts","./src/api/index.ts","./src/stores/index.ts","./src/types/index.ts","./src/App.vue","./src/components/HelloWorld.vue","./src/views/GanttView.vue","./src/views/KanbanView.vue","./src/views/SwimLaneView.vue","./src/views/WorkLogView.vue"],"errors":true,"version":"6.0.2"}

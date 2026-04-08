@@ -1,16 +1,16 @@
-FROM eclipse-temurin:17-jdk-alpine AS builder
+FROM amazoncorretto:17-alpine
 
 WORKDIR /app
-COPY pom.xml .
-COPY src ./src
-RUN apk add --no-cache maven && mvn package -DskipTests
 
-FROM eclipse-temurin:17-jre-alpine
+# Copy pre-built JAR (already compiled - faster than rebuilding in container)
+COPY target/task-hub-backend-1.0.0.jar app.jar
 
-WORKDIR /app
-COPY --from=builder /app/target/*.jar app.jar
+# Also copy schema.sql for reference (actual init done via existing MySQL)
 COPY src/main/resources/schema.sql /app/schema.sql
 
-EXPOSE 8080
+EXPOSE 8096
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# JVM tuning for containers
+ENV JAVA_OPTS="-Xms256m -Xmx512m -XX:+UseG1GC"
+
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
