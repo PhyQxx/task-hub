@@ -7,6 +7,7 @@ import com.taskhub.util.TaskIdGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -36,5 +37,9 @@ public class WorkLogService {
 
     public List<TaskWorkLog> getByTaskId(String taskId) {
         return workLogMapper.selectByTaskId(taskId);
+    }
+
+    public List<TaskWorkLog> listAll(LocalDate date, String userId) {
+        return workLogMapper.selectAll(date, userId);
     }
 }

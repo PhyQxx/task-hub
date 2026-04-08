@@ -112,7 +112,7 @@ function initGanttConfig() {
 async function initGantt() {
   if (!ganttRef.value) return
 
-  const projectId = projectStore.currentProjectId
+  const projectId = projectStore.currentProjectId; 
   if (!projectId) return
 
   if (ganttInited) {
@@ -131,7 +131,7 @@ async function initGantt() {
 
 async function handleCreateTask() {
   if (!taskForm.value.title) return
-  const projectId = projectStore.currentProjectId
+  const projectId = projectStore.currentProjectId; 
   if (!projectId) return
 
   try {
@@ -169,8 +169,8 @@ onMounted(async () => {
     const task = gantt.getTask(id) as any
     try {
       await taskApi.update(id, {
-        startDate: dayjs(task.start_date).format('YYYY-MM-DD HH:mm:ss'),
-        endDate: dayjs(task.end_date).format('YYYY-MM-DD HH:mm:ss'),
+        startDate: dayjs(task.start_date).format('YYYY-MM-DD'),
+        endDate: dayjs(task.end_date).format('YYYY-MM-DD'),
         progress: task.progress,
       })
     } catch (err) {
@@ -252,3 +252,4 @@ onBeforeUnmount(() => {
   border-color: var(--border-light) !important;
 }
 </style>
+

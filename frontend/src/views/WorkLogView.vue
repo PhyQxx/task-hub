@@ -128,10 +128,8 @@ async function fetchLogs() {
   if (!pid) return
   loading.value = true
   try {
-    // 从 tasks 接口过滤 work-logs 相关数据
-    // 实际项目中可能需要一个通用的日志列表接口
-    const res = await workLogApi.list('')
-    logs.value = (res.data || []).filter((l: WorkLog) => l.date === logDate.value)
+    const res = await workLogApi.list({ date: logDate.value })
+    logs.value = res.data || []
   } catch {
     logs.value = []
   } finally {
@@ -148,12 +146,12 @@ async function handleSaveLog() {
   try {
     const userName = localStorage.getItem('userName') || '匿名用户'
     await workLogApi.create({
-      taskId: logForm.value.taskId || undefined,
-      date: logDate.value,
-      todayProgress: logForm.value.todayProgress,
+      taskId: logForm.value.taskId || null,
+      userId: userName,
+      logDate: logDate.value,
+      todayDone: logForm.value.todayProgress,
       tomorrowPlan: logForm.value.tomorrowPlan,
       blockers: logForm.value.blockers,
-      userName,
     })
     ElMessage.success('日志保存成功')
     handleReset()

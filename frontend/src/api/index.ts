@@ -37,7 +37,11 @@ export const memberApi = {
 }
 
 export const workLogApi = {
-  list: (taskId: string) => client.get<ApiResponse<any[]>>(`/work-logs/task/${taskId}`),
+  list: (params?: { date?: string; userId?: string }) => {
+    const query = params ? '?' + new URLSearchParams(params as any).toString() : ''
+    return client.get<ApiResponse<any[]>>(`/work-logs${query}`)
+  },
+  listByTask: (taskId: string) => client.get<ApiResponse<any[]>>(`/work-logs/task/${taskId}`),
   create: (data: any) => client.post<ApiResponse<any>>('/work-logs', data),
   update: (id: string, data: any) => client.put<ApiResponse<any>>(`/work-logs/${id}`, data),
   delete: (id: string) => client.delete<ApiResponse<void>>(`/work-logs/${id}`),
