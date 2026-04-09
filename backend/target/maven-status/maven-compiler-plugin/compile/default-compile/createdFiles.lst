@@ -6,10 +6,12 @@ com/taskhub/dto/DependencyDTO.class
 com/taskhub/mapper/TaskHistoryMapper.class
 com/taskhub/entity/Milestone.class
 com/taskhub/config/JwtAuthenticationFilter.class
+com/taskhub/controller/GanttController$LinkDTO.class
 com/taskhub/config/MybatisPlusConfig.class
 com/taskhub/vo/MemberLoadTrendVO.class
 com/taskhub/service/ProjectService.class
 com/taskhub/entity/TaskHistory.class
+com/taskhub/dto/ProjectUpdateDTO.class
 com/taskhub/config/JwtAuthenticationFilter$LoginUser.class
 com/taskhub/service/ScheduleService.class
 com/taskhub/vo/GanttDataVO.class
@@ -21,6 +23,7 @@ com/taskhub/service/MilestoneService.class
 com/taskhub/entity/ProjectMember.class
 com/taskhub/config/CorsConfig.class
 com/taskhub/vo/TaskHistoryVO$HistoryItemVO.class
+com/taskhub/dto/BatchTaskUpdateDTO.class
 com/taskhub/dto/TaskCreateDTO.class
 com/taskhub/controller/MemberController.class
 com/taskhub/controller/WorkLogController.class
@@ -32,6 +35,7 @@ com/taskhub/dto/BatchScheduleDTO.class
 com/taskhub/dto/MilestoneCreateDTO.class
 com/taskhub/dto/WorkLogCreateDTO.class
 com/taskhub/service/WorkLogService.class
+com/taskhub/config/GlobalExceptionHandler.class
 com/taskhub/vo/MemberLoadTrendVO$WeekLoadVO.class
 com/taskhub/mapper/ProjectMapper.class
 com/taskhub/ws/GanttWebSocketHandler.class

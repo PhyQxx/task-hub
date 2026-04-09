@@ -5,6 +5,7 @@ import com.taskhub.entity.TaskWorkLog;
 import com.taskhub.mapper.TaskWorkLogMapper;
 import com.taskhub.util.TaskIdGenerator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -19,10 +20,21 @@ public class WorkLogService {
     private final TaskIdGenerator taskIdGenerator;
 
     public TaskWorkLog create(WorkLogCreateDTO dto) {
+        // Bug-001: userId 非空校验
+        if (dto.getUserId() == null || dto.getUserId().trim().isEmpty()) {
+            throw new IllegalArgumentException("userId 不能为空");
+        }
+        // Bug-002: 重复提交校验（UK: task_id + log_date）
+        if (dto.getTaskId() != null && dto.getLogDate() != null) {
+            TaskWorkLog existing = workLogMapper.selectByTaskAndDate(dto.getTaskId(), dto.getLogDate());
+            if (existing != null) {
+                throw new DuplicateKeyException("该日期工作日志已存在");
+            }
+        }
         TaskWorkLog log = new TaskWorkLog();
         log.setLogId(taskIdGenerator.nextWorkLogId());
         log.setTaskId(dto.getTaskId());
-        log.setUserId(dto.getUserId());
+        log.setUserId(dto.getUserId().trim());
         log.setLogDate(dto.getLogDate());
         log.setTodayDone(dto.getTodayDone());
         log.setTomorrowPlan(dto.getTomorrowPlan());

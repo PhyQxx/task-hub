@@ -31,8 +31,14 @@ export const useTaskStore = defineStore('task', () => {
   async function fetchTasks(projectId: string) {
     loading.value = true
     try {
-      const res = await taskApi.list(projectId)
-      tasks.value = res.data || []
+      // 如果 projectId 为空，获取所有任务
+      if (!projectId) {
+        const res = await taskApi.listAll()
+        tasks.value = res.data || []
+      } else {
+        const res = await taskApi.list(projectId)
+        tasks.value = res.data || []
+      }
     } finally {
       loading.value = false
     }
@@ -75,10 +81,12 @@ export const useGanttStore = defineStore('gantt', () => {
     loading.value = true
     try {
       const res = await ganttApi.getData(projectId)
+      // 兼容两种响应结构
+      const d = (res.data as any)?.data ?? res.data ?? {}
       ganttData.value = {
-        tasks: (res.data as any)?.data || [],
-        links: (res.data as any)?.links || [],
-        milestones: (res.data as any)?.milestones || [],
+        tasks: d.data || d.tasks || [],
+        links: d.links || [],
+        milestones: d.milestones || [],
       }
     } finally {
       loading.value = false
@@ -90,13 +98,19 @@ export const useGanttStore = defineStore('gantt', () => {
 
 export const useMemberStore = defineStore('member', () => {
   const members = ref<Member[]>([])
+  const roles = ref<string[]>([])
 
   async function fetchMembers() {
     const res = await memberApi.list()
     members.value = res.data || []
   }
 
-  return { members, fetchMembers }
+  async function fetchRoles() {
+    const res = await memberApi.roles()
+    roles.value = res.data || []
+  }
+
+  return { members, roles, fetchMembers, fetchRoles }
 })
 
 export const useWorkLogStore = defineStore('worklog', () => {

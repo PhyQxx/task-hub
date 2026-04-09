@@ -30,10 +30,18 @@
             v-for="task in getTasks(col.key)"
             :key="task.id"
             class="kanban-card"
-            :class="{ 'blocked-card': col.key === 'BLOCKED' }"
+            :class="{ 'blocked-card': col.key === 'BLOCKED', 'selected-card': selectedTasks.has(task.id || task.taskId) }"
             @click="openTask(task)"
             @contextmenu.prevent="showCtxMenu($event, task)"
           >
+            <div class="card-select-wrap" @click.stop>
+              <input
+                type="checkbox"
+                class="card-checkbox"
+                :checked="selectedTasks.has(task.id || task.taskId)"
+                @change="toggleSelect(task)"
+              />
+            </div>
             <div class="kanban-card-title">{{ task.title }}</div>
             <div class="kanban-card-meta">
               <span class="tag" :class="priorityTag(task.priority)">{{ priorityLabel(task.priority) }}</span>
@@ -78,10 +86,10 @@
           <div class="modal-field">
             <label class="form-label">优先级</label>
             <select class="form-input" v-model="form.priority">
-              <option value="LOW">🔵 低</option>
-              <option value="MEDIUM">🟡 中</option>
-              <option value="HIGH">🟠 高</option>
-              <option value="URGENT">🔴 紧急</option>
+              <option value="LOW">低</option>
+              <option value="MEDIUM">中</option>
+              <option value="HIGH">高</option>
+              <option value="URGENT">紧急</option>
             </select>
           </div>
           <div class="modal-field">
@@ -118,6 +126,41 @@
       <div class="ctx-menu-sep"></div>
       <div class="ctx-menu-item danger" @click="ctxDelete">🗑 删除</div>
     </div>
+
+    <!-- Batch Action Toolbar -->
+    <div v-if="selectedTasks.size > 0" class="batch-toolbar">
+      <span class="batch-info">已选择 {{ selectedTasks.size }} 项</span>
+      <button class="btn btn-primary" style="font-size:12px" @click="showBatchStatus = true">批量更新状态</button>
+      <button class="btn btn-ghost" style="font-size:12px" @click="showBatchAssign = true">批量指派</button>
+      <button class="btn btn-ghost danger" style="font-size:12px" @click="handleBatchDelete">批量删除</button>
+      <button class="btn btn-ghost" style="font-size:12px;margin-left:auto" @click="selectedTasks.clear()">取消</button>
+    </div>
+
+    <!-- Batch Status Dialog -->
+    <el-dialog v-model="showBatchStatus" title="批量更新状态" width="400px" :append-to-body="true">
+      <el-form-item label="新状态">
+        <el-select v-model="batchStatus" style="width:100%">
+          <el-option v-for="col in columns" :key="col.key" :label="col.label" :value="col.key" />
+        </el-select>
+      </el-form-item>
+      <template #footer>
+        <el-button @click="showBatchStatus = false">取消</el-button>
+        <el-button type="primary" :loading="batchLoading" @click="handleBatchStatus">确认更新</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Batch Assign Dialog -->
+    <el-dialog v-model="showBatchAssign" title="批量指派负责人" width="400px" :append-to-body="true">
+      <el-form-item label="负责人">
+        <el-select v-model="batchAssigneeId" placeholder="选择负责人（留空则取消指派）" clearable style="width:100%">
+          <el-option v-for="m in memberStore.members" :key="m.id" :label="m.name" :value="m.id" />
+        </el-select>
+      </el-form-item>
+      <template #footer>
+        <el-button @click="showBatchAssign = false">取消</el-button>
+        <el-button type="primary" :loading="batchLoading" @click="handleBatchAssign">确认指派</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -126,6 +169,7 @@ import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useProjectStore, useTaskStore, useMemberStore } from '@/stores'
 import type { Task } from '@/types'
 import { ElMessage } from 'element-plus'
+import { taskApi } from '@/api'
 
 const projectStore = useProjectStore()
 const taskStore = useTaskStore()
@@ -161,6 +205,78 @@ function assigneeAvClass(name: string) {
 const showEdit = ref(false)
 const editingTask = ref<Task | null>(null)
 const form = ref({ title:'', status:'TODO', assigneeId:'', priority:'MEDIUM', endDate:'', description:'' })
+
+// Batch operations
+const selectedTasks = ref(new Set<string>())
+const showBatchStatus = ref(false)
+const showBatchAssign = ref(false)
+const batchStatus = ref('TODO')
+const batchAssigneeId = ref('')
+const batchLoading = ref(false)
+
+function toggleSelect(task: any) {
+  const id = task.id || task.taskId
+  if (selectedTasks.value.has(id)) {
+    selectedTasks.value.delete(id)
+  } else {
+    selectedTasks.value.add(id)
+  }
+}
+
+async function handleBatchStatus() {
+  if (selectedTasks.value.size === 0) return
+  batchLoading.value = true
+  try {
+    await taskApi.batchUpdate({
+      taskIds: Array.from(selectedTasks.value),
+      status: batchStatus.value,
+    })
+    ElMessage.success(`已更新 ${selectedTasks.value.size} 个任务的状态`)
+    selectedTasks.value.clear()
+    showBatchStatus.value = false
+    await taskStore.fetchTasks()
+  } catch (e: any) {
+    ElMessage.error(e.message || '批量更新失败')
+  } finally {
+    batchLoading.value = false
+  }
+}
+
+async function handleBatchDelete() {
+  if (selectedTasks.value.size === 0) return
+  if (!confirm(`确认删除选中的 ${selectedTasks.value.size} 个任务？`)) return
+  try {
+    for (const id of selectedTasks.value) {
+      await taskApi.delete(id)
+    }
+    ElMessage.success(`已删除 ${selectedTasks.value.size} 个任务`)
+    selectedTasks.value.clear()
+    await taskStore.fetchTasks()
+  } catch (e: any) {
+    ElMessage.error(e.message || '批量删除失败')
+  }
+}
+
+async function handleBatchAssign() {
+  if (selectedTasks.value.size === 0) return
+  batchLoading.value = true
+  try {
+    await taskApi.batchUpdate({
+      taskIds: Array.from(selectedTasks.value),
+      assigneeId: batchAssigneeId.value || undefined,
+    })
+    ElMessage.success(`已指派 ${selectedTasks.value.size} 个任务`)
+    selectedTasks.value.clear()
+    showBatchAssign.value = false
+    batchAssigneeId.value = ''
+    await taskStore.fetchTasks()
+  } catch (e: any) {
+    ElMessage.error(e.message || '批量指派失败')
+  } finally {
+    batchLoading.value = false
+  }
+}
+
 
 function openTask(task?: Task) {
   editingTask.value = task || null
@@ -241,7 +357,7 @@ async function ctxDelete() {
 document.addEventListener('click', hideCtx)
 
 watch(() => projectStore.currentProjectId, async (id) => {
-  if (id) await taskStore.fetchTasks(id)
+  await taskStore.fetchTasks(id || '')
 }, { immediate: true })
 </script>
 
@@ -369,4 +485,54 @@ watch(() => projectStore.currentProjectId, async (id) => {
 /* Modal */
 .modal-field { margin-bottom: 10px; }
 .modal-actions { display: flex; gap: 8px; align-items: center; margin-top: 14px; }
+
+/* Batch toolbar */
+.batch-toolbar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  z-index: 100;
+  backdrop-filter: blur(10px);
+}
+.batch-info {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.btn.danger { color: var(--danger) !important; }
+
+/* Card checkbox */
+.card-select-wrap {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.kanban-card:hover .card-select-wrap,
+.kanban-card.selected-card .card-select-wrap {
+  opacity: 1;
+}
+.card-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
+.kanban-card {
+  position: relative;
+}
+.kanban-card.selected-card {
+  border-color: var(--primary) !important;
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface-1));
+}
 </style>

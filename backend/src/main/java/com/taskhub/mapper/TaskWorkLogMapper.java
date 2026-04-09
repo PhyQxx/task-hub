@@ -18,6 +18,9 @@ public interface TaskWorkLogMapper extends BaseMapper<TaskWorkLog> {
     @Select("SELECT * FROM task_work_logs WHERE user_id = #{userId} AND log_date = #{logDate}")
     TaskWorkLog selectByUserAndDate(@Param("userId") String userId, @Param("logDate") LocalDate logDate);
 
+    @Select("SELECT * FROM task_work_logs WHERE task_id = #{taskId} AND log_date = #{logDate} LIMIT 1")
+    TaskWorkLog selectByTaskAndDate(@Param("taskId") String taskId, @Param("logDate") LocalDate logDate);
+
     @Select("<script>" +
             "SELECT * FROM task_work_logs WHERE 1=1" +
             "<if test='date != null'> AND log_date = #{date}</if>" +

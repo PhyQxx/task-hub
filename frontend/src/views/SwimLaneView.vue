@@ -98,7 +98,7 @@ const taskStore = useTaskStore()
 const memberStore = useMemberStore()
 
 const viewDate = ref(30)
-const tickWidth = 40 // 每天宽度 px
+const tickWidth = 120 // 每天宽度 px（原型为 120px）
 const showDetail = ref(false)
 const currentTask = ref<Task | null>(null)
 
@@ -107,9 +107,10 @@ const timeTicks = computed(() => {
   const start = dayjs().subtract(3, 'day').startOf('day')
   for (let i = 0; i < viewDate.value + 5; i++) {
     const d = start.add(i, 'day')
+    const weekDayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
     ticks.push({
       date: d.format('YYYY-MM-DD'),
-      label: d.format('MM/DD'),
+      label: `${d.month() + 1}/${d.date()} ${weekDayNames[d.day()]}`,
       isToday: d.isSame(dayjs(), 'day'),
       isWeekend: d.day() === 0 || d.day() === 6,
     })
@@ -162,10 +163,8 @@ function openTask(task: Task) {
 }
 
 watch(() => projectStore.currentProjectId, async (id) => {
-  if (id) {
-    await taskStore.fetchTasks(id)
-    await memberStore.fetchMembers()
-  }
+  await taskStore.fetchTasks(id || '')
+  await memberStore.fetchMembers()
 }, { immediate: true })
 </script>
 
@@ -182,18 +181,19 @@ watch(() => projectStore.currentProjectId, async (id) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: var(--surface-3);
+  background: #222226;
   padding: 12px 16px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.05);
 }
-.project-name { font-weight: 590; font-size: 13px; }
+.project-name { font-weight: 590; font-size: 13px; color: var(--text); }
 .swimlane-board {
   flex: 1;
   overflow: auto;
-  background: var(--surface-3);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-strong);
+  background: #191a1b;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.05);
+  max-height: 560px;
 }
 .time-scale {
   display: flex;
@@ -202,11 +202,18 @@ watch(() => projectStore.currentProjectId, async (id) => {
   z-index: 10;
   background: #222226;
   border-bottom: 1px solid rgba(255,255,255,0.05);
+  min-width: 1080px;
 }
 .lane-label-spacer {
   width: 180px;
   min-width: 180px;
   border-right: 1px solid rgba(255,255,255,0.05);
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 590;
+  color: #62666d;
+  text-transform: uppercase;
+  letter-spacing: 0.36px;
 }
 .time-ticks { display: flex; }
 .tick {
@@ -223,7 +230,8 @@ watch(() => projectStore.currentProjectId, async (id) => {
 .tick.today { color: var(--primary); background: rgba(91,90,255,0.08); }
 .swimlane-row {
   display: flex;
-  min-height: 64px;
+  min-width: 1080px;
+  height: 64px;
   border-bottom: 1px solid rgba(255,255,255,0.04);
 }
 .lane-label {
@@ -243,7 +251,7 @@ watch(() => projectStore.currentProjectId, async (id) => {
 .lane-timeline {
   flex: 1;
   position: relative;
-  min-height: 64px;
+  height: 64px;
   display: flex;
 }
 .timeline-grid {

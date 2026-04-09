@@ -35,7 +35,7 @@ public class TaskController {
     }
 
     @PutMapping("/{taskId}")
-    public ApiResponse<Task> update(@PathVariable String taskId,
+    public ApiResponse<?> update(@PathVariable String taskId,
                                      @RequestBody TaskUpdateDTO dto,
                                      @RequestHeader(value = "X-User-Id", defaultValue = "system") String userId) {
         return ApiResponse.success(taskService.update(taskId, dto, userId));
@@ -51,6 +51,12 @@ public class TaskController {
     @GetMapping("/project/{projectId}")
     public ApiResponse<List<Task>> listByProject(@PathVariable String projectId) {
         return ApiResponse.success(taskService.listByProject(projectId));
+    }
+
+    // 获取所有任务（不按项目筛选）
+    @GetMapping("/all")
+    public ApiResponse<List<Task>> listAll() {
+        return ApiResponse.success(taskService.listAll());
     }
 
     @GetMapping("/{taskId}/history")

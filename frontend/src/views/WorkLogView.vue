@@ -124,12 +124,13 @@ function getTaskTitle(taskId: string) {
 }
 
 async function fetchLogs() {
-  const pid = projectStore.currentProjectId
-  if (!pid) return
+  // 支持全部项目时也获取日志（不限制 projectId）
   loading.value = true
   try {
     const res = await workLogApi.list({ date: logDate.value })
-    logs.value = res.data || []
+    // 兼容两种响应结构：1) {code:0, data: [...]}  2) [...]
+    const raw = res.data
+    logs.value = (raw as any)?.data ?? (Array.isArray(raw) ? raw : [])
   } catch {
     logs.value = []
   } finally {

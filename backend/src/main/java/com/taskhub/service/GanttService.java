@@ -40,6 +40,19 @@ public class GanttService {
         return vo;
     }
 
+    public GanttDataVO getAllGanttData() {
+        List<Task> tasks = taskMapper.selectList(null);
+        List<TaskDependency> allDeps = dependencyMapper.selectList(null);
+
+        List<GanttTaskVO> taskVOs = tasks.stream().map(this::toGanttTaskVO).collect(Collectors.toList());
+        List<GanttLinkVO> linkVOs = allDeps.stream().map(this::toGanttLinkVO).collect(Collectors.toList());
+
+        GanttDataVO vo = new GanttDataVO();
+        vo.setData(taskVOs);
+        vo.setLinks(linkVOs);
+        return vo;
+    }
+
     private GanttTaskVO toGanttTaskVO(Task task) {
         GanttTaskVO vo = new GanttTaskVO();
         vo.setId(task.getTaskId());
@@ -72,6 +85,30 @@ public class GanttService {
         vo.setTarget(dep.getTaskId());
         vo.setType(dep.getDependencyType());
         return vo;
+    }
+
+    public GanttLinkVO addLink(String taskId, String dependsOn, String dependencyType) {
+        TaskDependency dep = new TaskDependency();
+        dep.setTaskId(taskId);
+        dep.setDependsOn(dependsOn);
+        dep.setDependencyType(dependencyType);
+        dep.setCreatedAt(java.time.LocalDateTime.now());
+        dependencyMapper.insert(dep);
+        GanttLinkVO vo = new GanttLinkVO();
+        vo.setId(dep.getId() + "");
+        vo.setSource(dependsOn);
+        vo.setTarget(taskId);
+        vo.setType(dependencyType);
+        return vo;
+    }
+
+    public List<GanttLinkVO> getLinksByProject(String projectId) {
+        List<Task> tasks = taskMapper.selectByProjectId(projectId);
+        List<TaskDependency> allDeps = new ArrayList<>();
+        for (Task task : tasks) {
+            allDeps.addAll(dependencyMapper.selectByTaskId(task.getTaskId()));
+        }
+        return allDeps.stream().map(this::toGanttLinkVO).collect(Collectors.toList());
     }
 
     private Integer calculateDuration(java.time.LocalDate start, java.time.LocalDate end) {

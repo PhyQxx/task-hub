@@ -95,6 +95,8 @@
         <GanttView  v-show="activeTab === 'gantt'" />
         <KanbanView v-show="activeTab === 'kanban'" />
         <SwimLaneView v-show="activeTab === 'swimlane'" />
+        <MemberView v-show="activeTab === 'member'" />
+        <MilestoneView v-show="activeTab === 'milestone'" />
         <WorkLogView v-show="activeTab === 'worklog'" />
       </main>
     </div>
@@ -202,6 +204,8 @@ import GanttView from '@/views/GanttView.vue'
 import KanbanView from '@/views/KanbanView.vue'
 import SwimLaneView from '@/views/SwimLaneView.vue'
 import WorkLogView from '@/views/WorkLogView.vue'
+import MemberView from '@/views/MemberView.vue'
+import MilestoneView from '@/views/MilestoneView.vue'
 import LoginView from '@/views/LoginView.vue'
 
 const projectStore = useProjectStore()
@@ -219,6 +223,8 @@ const tabs = [
   { key: 'gantt', label: '甘特图', icon: '📊' },
   { key: 'kanban', label: '看板', icon: '📋' },
   { key: 'swimlane', label: '泳道', icon: '🌊' },
+  { key: 'member', label: '成员', icon: '👥' },
+  { key: 'milestone', label: '里程碑', icon: '🎯' },
   { key: 'worklog', label: '日志', icon: '📝' },
 ]
 

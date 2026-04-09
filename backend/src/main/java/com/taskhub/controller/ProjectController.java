@@ -1,6 +1,7 @@
 package com.taskhub.controller;
 
 import com.taskhub.dto.ProjectCreateDTO;
+import com.taskhub.dto.ProjectUpdateDTO;
 import com.taskhub.entity.Project;
 import com.taskhub.entity.ProjectMember;
 import com.taskhub.service.ProjectService;
@@ -34,6 +35,12 @@ public class ProjectController {
             return ApiResponse.error(404, "Project not found");
         }
         return ApiResponse.success(project);
+    }
+
+    @PutMapping("/{projectId}")
+    public ApiResponse<Project> update(@PathVariable String projectId,
+                                        @RequestBody ProjectUpdateDTO dto) {
+        return ApiResponse.success(projectService.update(projectId, dto));
     }
 
     @DeleteMapping("/{projectId}")

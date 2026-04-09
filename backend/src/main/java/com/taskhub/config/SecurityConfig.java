@@ -26,8 +26,9 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // 白名单：登录、注册、静态资源、WebSocket
+                // 白名单：登录、注册、静态资源、WebSocket、API（临时开放测试）
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/**").permitAll()  // 临时开放所有API测试
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/ws/**").permitAll()
                 .requestMatchers("/error").permitAll()

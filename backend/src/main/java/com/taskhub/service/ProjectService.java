@@ -2,6 +2,7 @@ package com.taskhub.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.taskhub.dto.ProjectCreateDTO;
+import com.taskhub.dto.ProjectUpdateDTO;
 import com.taskhub.entity.Project;
 import com.taskhub.entity.ProjectMember;
 import com.taskhub.mapper.ProjectMapper;
@@ -23,9 +24,17 @@ public class ProjectService {
     private final TaskIdGenerator taskIdGenerator;
 
     public Project create(ProjectCreateDTO dto) {
+        // Bug-007: ownerId 非空校验
+        if (dto.getOwnerId() == null || dto.getOwnerId().trim().isEmpty()) {
+            throw new IllegalArgumentException("ownerId 不能为空");
+        }
+        // 项目名校验
+        if (dto.getName() == null || dto.getName().trim().isEmpty()) {
+            throw new IllegalArgumentException("项目名称不能为空");
+        }
         Project project = new Project();
         project.setProjectId(taskIdGenerator.nextProjectId());
-        project.setName(dto.getName());
+        project.setName(dto.getName().trim());
         project.setDescription(dto.getDescription());
         project.setOwnerId(dto.getOwnerId());
         project.setStartDate(dto.getStartDate());
@@ -52,6 +61,21 @@ public class ProjectService {
 
     public Project getById(String projectId) {
         return projectMapper.selectOne(new QueryWrapper<Project>().eq("project_id", projectId));
+    }
+
+    public Project update(String projectId, ProjectUpdateDTO dto) {
+        Project project = projectMapper.selectOne(new QueryWrapper<Project>().eq("project_id", projectId));
+        if (project == null) throw new IllegalArgumentException("Project not found: " + projectId);
+        if (dto.getName() != null && !dto.getName().trim().isEmpty()) {
+            project.setName(dto.getName().trim());
+        }
+        if (dto.getDescription() != null) project.setDescription(dto.getDescription());
+        if (dto.getStartDate() != null) project.setStartDate(dto.getStartDate());
+        if (dto.getEndDate() != null) project.setEndDate(dto.getEndDate());
+        if (dto.getStatus() != null) project.setStatus(dto.getStatus());
+        project.setUpdatedAt(LocalDateTime.now());
+        projectMapper.updateById(project);
+        return project;
     }
 
     public void delete(String projectId) {

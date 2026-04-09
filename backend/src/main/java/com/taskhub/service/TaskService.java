@@ -30,9 +30,13 @@ public class TaskService {
     private final TaskIdGenerator taskIdGenerator;
 
     public Task create(TaskCreateDTO dto, String createdBy) {
+        // Bug-003: 标题非空校验
+        if (dto.getTitle() == null || dto.getTitle().trim().isEmpty()) {
+            throw new IllegalArgumentException("标题不能为空");
+        }
         Task task = new Task();
         task.setTaskId(taskIdGenerator.nextTaskId());
-        task.setTitle(dto.getTitle());
+        task.setTitle(dto.getTitle().trim());
         task.setDescription(dto.getDescription());
         task.setProjectId(dto.getProjectId());
         task.setAssigneeId(dto.getAssigneeId());
@@ -57,6 +61,11 @@ public class TaskService {
     }
 
     public Task update(String taskId, TaskUpdateDTO dto, String operator) {
+        // Batch mode via PUT /tasks/{taskId}?taskIds=...
+        if (dto != null && dto.getTaskIds() != null && !dto.getTaskIds().isEmpty()) {
+            batchUpdate(dto.getTaskIds(), dto.getStatus(), dto.getAssigneeId(), dto.getPriority());
+            return null;
+        }
         Task task = getById(taskId);
         if (task == null) throw new RuntimeException("Task not found: " + taskId);
 
@@ -100,6 +109,10 @@ public class TaskService {
 
     public List<Task> listByProject(String projectId) {
         return taskMapper.selectByProjectId(projectId);
+    }
+
+    public List<Task> listAll() {
+        return taskMapper.selectList(new QueryWrapper<Task>().orderByDesc("created_at"));
     }
 
     public List<Task> getDownstreamTasks(String taskId) {
@@ -174,5 +187,20 @@ public class TaskService {
             }
         }
         return graph;
+    }
+
+    public int batchUpdate(List<String> taskIds, String status, String assigneeId, String priority) {
+        if (taskIds == null || taskIds.isEmpty()) return 0;
+        int count = 0;
+        for (String taskId : taskIds) {
+            Task task = new Task();
+            task.setTaskId(taskId);
+            if (status != null) task.setStatus(status);
+            if (assigneeId != null) task.setAssigneeId(assigneeId);
+            if (priority != null) task.setPriority(priority);
+            taskMapper.updateById(task);
+            count++;
+        }
+        return count;
     }
 }

@@ -8,6 +8,7 @@
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/service/ProjectService.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/dto/WorkLogCreateDTO.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/dto/TaskUpdateDTO.java
+/root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/dto/ProjectUpdateDTO.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/config/SecurityConfig.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/vo/ReorderResultVO.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/vo/BatchScheduleResultVO.java
@@ -39,6 +40,7 @@
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/config/WebSocketConfig.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/mapper/ProjectMapper.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/mapper/MilestoneMapper.java
+/root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/config/GlobalExceptionHandler.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/entity/Member.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/entity/TaskWorkLog.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/config/MybatisPlusConfig.java
@@ -47,6 +49,7 @@
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/dto/DependencyDTO.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/TaskHubApplication.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/service/MemberService.java
+/root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/dto/BatchTaskUpdateDTO.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/vo/ApiResponse.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/dto/TaskReorderDTO.java
 /root/.openclaw/workspace-pd/任务舱/backend/src/main/java/com/taskhub/entity/TaskDependency.java
