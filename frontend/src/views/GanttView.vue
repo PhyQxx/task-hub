@@ -155,7 +155,6 @@ const ganttStore = useGanttStore()
 const memberStore = useMemberStore()
 const taskStore = useTaskStore()
 
-const ganttRef = ref<HTMLElement>()
 const ganttContainer = ref<HTMLElement>()
 const ganttInstance = ref<any>(null)
 const showCreateTask = ref(false)
@@ -180,17 +179,17 @@ const memberTaskCount = computed(() => {
   const tasks = ganttStore.ganttData.tasks || []
   const memberMap = new Map<string, number>()
   const memberNames = new Map<string, string>()
-  
+
   tasks.forEach(t => {
     const name = t.assigneeName || '未分配'
     const count = memberMap.get(name) || 0
     memberMap.set(name, count + 1)
     if (t.assigneeName) memberNames.set(name, t.assigneeName)
   })
-  
+
   const maxCount = Math.max(...Array.from(memberMap.values()), 1)
   const colors = ['#3370ff', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
-  
+
   return Array.from(memberMap.entries())
     .map(([name, count], i) => ({
       name,
@@ -257,7 +256,7 @@ function initGanttConfig() {
 }
 
 async function initGantt() {
-  if (!ganttRef.value) return
+  if (!ganttContainer.value) return
 
   const projectId = projectStore.currentProjectId;
 
@@ -265,7 +264,8 @@ async function initGantt() {
     // 首次：配置 + 创建实例
     initGanttConfig()
     await nextTick()
-    gantt = Gantt.getGanttInstance({ container: ganttRef.value })
+    gantt.init(ganttContainer.value)
+    ganttInstance.value = gantt
   } else {
     gantt.clearAll()
   }
@@ -277,7 +277,7 @@ async function initGantt() {
 
   // 调试日志
   // 调试日志
-  console.log('[Gantt] initGantt START, container:', ganttRef.value)
+  console.log('[Gantt] initGantt START, container:', ganttContainer.value)
   const today = new Date()
   // 过滤无效任务（无有意义文本或无日期），并转换为 Date 对象
   const normalizedTasks = (tasks || [])
@@ -327,7 +327,7 @@ async function initGantt() {
 
 async function handleCreateTask() {
   if (!taskForm.value.title) return
-  const projectId = projectStore.currentProjectId; 
+  const projectId = projectStore.currentProjectId;
   if (!projectId) return
 
   try {
