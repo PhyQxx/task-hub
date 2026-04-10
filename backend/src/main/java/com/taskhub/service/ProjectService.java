@@ -7,8 +7,11 @@ import com.taskhub.entity.Project;
 import com.taskhub.entity.ProjectMember;
 import com.taskhub.mapper.ProjectMapper;
 import com.taskhub.mapper.ProjectMemberMapper;
+import com.taskhub.config.JwtAuthenticationFilter.LoginUser;
 import com.taskhub.util.TaskIdGenerator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,11 +26,19 @@ public class ProjectService {
     private final ProjectMemberMapper projectMemberMapper;
     private final TaskIdGenerator taskIdGenerator;
 
-    public Project create(ProjectCreateDTO dto) {
-        // Bug-007: ownerId 非空校验
-        if (dto.getOwnerId() == null || dto.getOwnerId().trim().isEmpty()) {
-            throw new IllegalArgumentException("ownerId 不能为空");
+    /**
+     * 从 SecurityContext 获取当前登录用户的 memberId
+     */
+    private String getCurrentMemberId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof LoginUser loginUser) {
+            return loginUser.memberId();
         }
+        throw new IllegalStateException("无法获取当前用户信息");
+    }
+
+    public Project create(ProjectCreateDTO dto) {
+        String ownerId = getCurrentMemberId();
         // 项目名校验
         if (dto.getName() == null || dto.getName().trim().isEmpty()) {
             throw new IllegalArgumentException("项目名称不能为空");
@@ -36,7 +47,7 @@ public class ProjectService {
         project.setProjectId(taskIdGenerator.nextProjectId());
         project.setName(dto.getName().trim());
         project.setDescription(dto.getDescription());
-        project.setOwnerId(dto.getOwnerId());
+        project.setOwnerId(ownerId);
         project.setStartDate(dto.getStartDate());
         project.setEndDate(dto.getEndDate());
         project.setStatus("planning");
@@ -47,7 +58,7 @@ public class ProjectService {
         // Add owner as member
         ProjectMember pm = new ProjectMember();
         pm.setProjectId(project.getProjectId());
-        pm.setMemberId(dto.getOwnerId());
+        pm.setMemberId(ownerId);
         pm.setRole("owner");
         pm.setJoinedAt(LocalDateTime.now());
         projectMemberMapper.insert(pm);

@@ -23,6 +23,7 @@ public class GanttTaskVO {
     private String description;
     private String assignee_id;
     private String assignee_name;
+    private String project_id;
     private Integer is_milestone;
     private LocalDate milestone_date;
     private List<GanttLinkVO> dependencies;

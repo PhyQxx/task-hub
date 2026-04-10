@@ -17,6 +17,7 @@ public class TaskUpdateDTO {
     private Integer progress;
     private String status;
     private String priority;
+    private String projectId;
     private String blockedReason;
     private Integer isMilestone;
     private LocalDate milestoneDate;

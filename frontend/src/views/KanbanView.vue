@@ -2,7 +2,7 @@
   <div class="kanban-view">
     <!-- Stats row -->
     <div class="stats-row">
-      <div class="stat-card"><div class="stat-label">总任务</div><div class="stat-value">{{ taskStore.tasks.length }}</div></div>
+      <div class="stat-card"><div class="stat-label">总任务</div><div class="stat-value">{{ filteredTasks.length }}</div></div>
       <div class="stat-card"><div class="stat-label">进行中</div><div class="stat-value" style="color:var(--primary)">{{ countByStatus('IN_PROGRESS') }}</div></div>
       <div class="stat-card"><div class="stat-label">已完成</div><div class="stat-value" style="color:var(--success)">{{ countByStatus('DONE') }}</div></div>
       <div class="stat-card"><div class="stat-label">已阻塞</div><div class="stat-value" style="color:var(--danger)">{{ countByStatus('BLOCKED') }}</div></div>
@@ -25,20 +25,27 @@
           <span class="kanban-col-title">{{ col.label }}</span>
           <span class="kanban-col-count">{{ getTasks(col.key).length }}</span>
         </div>
-        <div class="kanban-cards">
+        <div
+          class="kanban-cards"
+          @dragover.prevent="onDragOver(col.key)"
+          @drop="onDrop(col.key)"
+        >
           <div
             v-for="task in getTasks(col.key)"
             :key="task.id"
             class="kanban-card"
-            :class="{ 'blocked-card': col.key === 'BLOCKED', 'selected-card': selectedTasks.has(task.id || task.taskId) }"
+            :class="{ 'blocked-card': col.key === 'BLOCKED', 'selected-card': selectedTasks.has(task.taskId || task.id), 'dragging-card': dragTaskId === (task.taskId || task.id) }"
+            draggable="true"
             @click="openTask(task)"
             @contextmenu.prevent="showCtxMenu($event, task)"
+            @dragstart="onDragStart(task, col.key)"
+            @dragend="onDragEnd"
           >
             <div class="card-select-wrap" @click.stop>
               <input
                 type="checkbox"
                 class="card-checkbox"
-                :checked="selectedTasks.has(task.id || task.taskId)"
+                :checked="selectedTasks.has(task.taskId || task.id)"
                 @change="toggleSelect(task)"
               />
             </div>
@@ -78,7 +85,7 @@
             <label class="form-label">负责人</label>
             <select class="form-input" v-model="form.assigneeId">
               <option value="">未分配</option>
-              <option v-for="m in memberStore.members" :key="m.id" :value="m.id">{{ m.name }}</option>
+              <option v-for="m in memberStore.members" :key="m.memberId" :value="m.memberId">{{ m.nickname }}</option>
             </select>
           </div>
         </div>
@@ -153,7 +160,7 @@
     <el-dialog v-model="showBatchAssign" title="批量指派负责人" width="400px" :append-to-body="true">
       <el-form-item label="负责人">
         <el-select v-model="batchAssigneeId" placeholder="选择负责人（留空则取消指派）" clearable style="width:100%">
-          <el-option v-for="m in memberStore.members" :key="m.id" :label="m.name" :value="m.id" />
+          <el-option v-for="m in memberStore.members" :key="m.memberId" :label="m.nickname" :value="m.memberId" />
         </el-select>
       </el-form-item>
       <template #footer>
@@ -165,15 +172,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { useProjectStore, useTaskStore, useMemberStore } from '@/stores'
+import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue'
+import { useProjectStore, useTaskStore, useMemberStore, useGanttStore, useAuthStore } from '@/stores'
 import type { Task } from '@/types'
 import { ElMessage } from 'element-plus'
 import { taskApi } from '@/api'
+import dayjs from 'dayjs'
 
 const projectStore = useProjectStore()
 const taskStore = useTaskStore()
 const memberStore = useMemberStore()
+const ganttStore = useGanttStore()
+const authStore = useAuthStore()
+
+// 快捷筛选
+const filteredTasks = computed(() => {
+  const f = ganttStore.taskFilter
+  let tasks = taskStore.tasks
+  if (!f) return tasks
+  const todayStr = dayjs().format('YYYY-MM-DD')
+  if (f === 'mine' || f === 'owner') tasks = tasks.filter((t: any) => t.assigneeId === authStore.memberId || t.assignee_id === authStore.memberId)
+  else if (f === 'today') tasks = tasks.filter((t: any) => t.endDate === todayStr || t.end_date === todayStr)
+  else if (f === 'blocked') tasks = tasks.filter((t: any) => t.status === 'BLOCKED')
+  return tasks
+})
 
 const columns = [
   { key: 'TODO', label: '待处理', dotClass: 'pending' },
@@ -183,11 +205,11 @@ const columns = [
 ]
 
 function getTasks(status: string) {
-  return taskStore.tasks.filter(t => t.status === status)
+  return filteredTasks.value.filter(t => t.status === status)
 }
 
 function countByStatus(status: string) {
-  return taskStore.tasks.filter(t => t.status === status).length
+  return filteredTasks.value.filter(t => t.status === status).length
 }
 
 function priorityTag(p: string) {
@@ -214,8 +236,32 @@ const batchStatus = ref('TODO')
 const batchAssigneeId = ref('')
 const batchLoading = ref(false)
 
+// Drag & drop
+const dragTaskId = ref<string | null>(null)
+const dragFromStatus = ref<string | null>(null)
+
+function onDragStart(task: any, fromStatus: string) {
+  dragTaskId.value = task.taskId || task.id  // 优先用 taskId（业务ID），其次 id（数据库自增主键）
+  dragFromStatus.value = fromStatus
+}
+function onDragEnd() {
+  dragTaskId.value = null
+  dragFromStatus.value = null
+}
+function onDragOver(_status: string) {
+  // allow drop
+}
+async function onDrop(toStatus: string) {
+  if (!dragTaskId.value || !dragFromStatus.value) return
+  if (dragFromStatus.value === toStatus) return
+  await taskStore.updateTask(dragTaskId.value, { status: toStatus } as any)
+  await taskStore.fetchTasks(projectStore.currentProjectId)
+  dragTaskId.value = null
+  dragFromStatus.value = null
+}
+
 function toggleSelect(task: any) {
-  const id = task.id || task.taskId
+  const id = task.taskId || task.id  // 优先 taskId
   if (selectedTasks.value.has(id)) {
     selectedTasks.value.delete(id)
   } else {
@@ -297,7 +343,7 @@ async function handleSave() {
   if (!projectId) { ElMessage.warning('请先选择项目'); return }
   try {
     if (editingTask.value) {
-      await taskStore.updateTask(editingTask.value.id, { projectId, ...form.value })
+      await taskStore.updateTask(editingTask.value.taskId || editingTask.value.id, { projectId, ...form.value })
     } else {
       await taskStore.createTask({ projectId, ...form.value })
     }
@@ -311,7 +357,7 @@ async function handleSave() {
 async function handleDelete() {
   if (!editingTask.value) return
   try {
-    await taskStore.deleteTask(editingTask.value.id)
+    await taskStore.deleteTask(editingTask.value.taskId || editingTask.value.id)
     showEdit.value = false
     await taskStore.fetchTasks(projectStore.currentProjectId)
   } catch(e) {
@@ -336,7 +382,7 @@ function hideCtx() { ctxVisible.value = false }
 
 async function ctxChangeStatus(status: string) {
   if (!ctxTask.value) return
-  await taskStore.updateTask(ctxTask.value.id, { status } as any)
+  await taskStore.updateTask(ctxTask.value.taskId || ctxTask.value.id, { status } as any)
   hideCtx()
   await taskStore.fetchTasks(projectStore.currentProjectId)
 }
@@ -349,7 +395,7 @@ function ctxEdit() {
 
 async function ctxDelete() {
   if (!ctxTask.value) return
-  await taskStore.deleteTask(ctxTask.value.id)
+  await taskStore.deleteTask(ctxTask.value.taskId || ctxTask.value.id)
   hideCtx()
   await taskStore.fetchTasks(projectStore.currentProjectId)
 }
@@ -442,6 +488,7 @@ onMounted(async () => {
   transition: all 0.2s;
 }
 .kanban-card:hover { background: var(--surface-5); }
+.dragging-card { opacity: 0.4; }
 .blocked-card { border-left: 3px solid var(--danger); }
 .kanban-card-title {
   font-size: 13px;

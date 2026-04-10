@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS members (
     id              BIGINT PRIMARY KEY AUTO_INCREMENT,
     member_id       VARCHAR(64) NOT NULL UNIQUE COMMENT '成员ID',
     nickname        VARCHAR(64) NOT NULL COMMENT '成员昵称',
-    role            VARCHAR(32) NOT NULL COMMENT '角色',
+    role            VARCHAR(32) NOT NULL COMMENT '角色：admin/user',
     skills          JSON COMMENT '技能标签',
     weekly_capacity FLOAT DEFAULT 40.0 COMMENT '周标准工时',
     is_active       TINYINT DEFAULT 1 COMMENT '是否在职',

@@ -7,7 +7,7 @@
 
       <select class="project-select" v-model="currentProjectId" @change="onProjectChange">
         <option value="">🌐 所有项目概览</option>
-        <option v-for="p in projectStore.projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+        <option v-for="p in projectStore.projects" :key="p.projectId" :value="p.projectId">{{ p.name }}</option>
       </select>
 
       <div class="header-tabs">
@@ -25,8 +25,6 @@
       <div class="header-spacer"></div>
 
       <div class="header-actions">
-        <button v-if="isAdmin" class="btn btn-ghost" @click="showSmartSchedule = true">🧠 智能排程</button>
-        <button class="btn btn-primary" @click="showCreateTask = true">+ 新建任务</button>
         <el-dropdown trigger="click">
           <el-avatar :style="{ background: 'var(--primary)', fontSize: '12px', cursor: 'pointer' }" size="small">
             {{ userName.slice(0, 1) }}
@@ -51,7 +49,7 @@
             :key="f.key"
             class="sidebar-item"
             :class="{ active: activeFilter === f.key }"
-            @click="activeFilter = f.key"
+            @click="setFilter(f.key)"
           >
             {{ f.icon }} {{ f.label }}
           </div>
@@ -61,24 +59,21 @@
           <div class="sidebar-title">📁 项目列表</div>
           <div
             v-for="p in projectStore.projects"
-            :key="p.id"
+            :key="p.projectId"
             class="sidebar-item project-item"
-            :class="{ active: currentProjectId === p.id }"
-            @click="selectProject(p.id)"
+            :class="{ active: currentProjectId === p.projectId }"
+            @click="selectProject(p.projectId)"
           >
             <span class="sidebar-dot dot-green"></span>
-            {{ p.name }}
+            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.name }}</span>
+            <span v-if="isAdmin" class="project-item-actions" @click.stop="openEditProject(p)">✏️</span>
           </div>
-          <div v-if="isAdmin" class="sidebar-item" style="color: var(--primary)" @click="showCreateProject = true">
+          <div v-if="isAdmin" class="sidebar-item" style="color: var(--primary)" @click="openCreateProject">
             + 新建项目
           </div>
         </div>
 
-        <div class="sidebar-section">
-          <div class="sidebar-title">🎯 里程碑</div>
-          <div class="sidebar-item">🎯 v1.0 发布 <span class="role-badge" style="margin-left:4px;font-size:10px;color:var(--success)">4/30</span></div>
-          <div class="sidebar-item">🎯 Beta 验收 <span class="role-badge" style="margin-left:4px;font-size:10px;color:var(--text-faint)">5/15</span></div>
-        </div>
+
 
         <div class="sidebar-section">
           <div class="sidebar-title">👤 当前角色</div>
@@ -99,7 +94,6 @@
         <KanbanView v-show="activeTab === 'kanban'" />
         <SwimLaneView v-show="activeTab === 'swimlane'" />
         <MemberView v-show="activeTab === 'member'" />
-        <MilestoneView v-show="activeTab === 'milestone'" />
         <WorkLogView v-show="activeTab === 'worklog'" />
       </main>
     </div>
@@ -120,7 +114,7 @@
             <label class="form-label">负责人</label>
             <select class="form-input" v-model="taskForm.assigneeId">
               <option value="">未分配</option>
-              <option v-for="m in memberStore.members" :key="m.id" :value="m.id">{{ m.name }}</option>
+              <option v-for="m in memberStore.members" :key="m.memberId" :value="m.memberId">{{ m.nickname }}</option>
             </select>
           </div>
           <div class="modal-field">
@@ -158,10 +152,10 @@
       </div>
     </div>
 
-    <!-- New Project Modal -->
-    <div v-if="showCreateProject" class="modal-overlay" @click.self="showCreateProject = false">
+    <!-- New/Edit Project Modal -->
+    <div v-if="showCreateProject" class="modal-overlay" @click.self="closeProjectModal">
       <div class="modal" style="width:420px">
-        <div class="modal-title">+ 新建项目</div>
+        <div class="modal-title">{{ editingProject ? '✏️ 编辑项目' : '+ 新建项目' }}</div>
         <div class="modal-field">
           <label class="form-label">项目名称 *</label>
           <input class="form-input" v-model="projectForm.name" placeholder="请输入项目名称" />
@@ -171,8 +165,11 @@
           <textarea class="form-textarea" v-model="projectForm.description" style="height:60px" placeholder="项目描述..."></textarea>
         </div>
         <div class="modal-actions">
-          <button class="btn btn-ghost" @click="showCreateProject = false">取消</button>
-          <button class="btn btn-primary" @click="handleCreateProject">创建</button>
+          <button v-if="editingProject && isAdmin" class="btn btn-danger" style="margin-right:auto" @click="handleDeleteProject">删除</button>
+          <button class="btn btn-ghost" @click="closeProjectModal">取消</button>
+          <button class="btn btn-primary" @click="editingProject ? handleUpdateProject() : handleCreateProject()">
+            {{ editingProject ? '保存' : '创建' }}
+          </button>
         </div>
       </div>
     </div>
@@ -181,7 +178,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useProjectStore, useMemberStore, useAuthStore, useTaskStore } from '@/stores'
+import { useProjectStore, useMemberStore, useAuthStore, useTaskStore, useGanttStore } from '@/stores'
 import { projectApi } from '@/api'
 import { ElMessage } from 'element-plus'
 import GanttView from '@/views/GanttView.vue'
@@ -189,7 +186,6 @@ import KanbanView from '@/views/KanbanView.vue'
 import SwimLaneView from '@/views/SwimLaneView.vue'
 import WorkLogView from '@/views/WorkLogView.vue'
 import MemberView from '@/views/MemberView.vue'
-import MilestoneView from '@/views/MilestoneView.vue'
 import LoginView from '@/views/LoginView.vue'
 import SmartScheduleModal from '@/components/SmartScheduleModal.vue'
 
@@ -197,20 +193,21 @@ const projectStore = useProjectStore()
 const memberStore = useMemberStore()
 const authStore = useAuthStore()
 const taskStore = useTaskStore()
+const ganttStore = useGanttStore()
 
 const activeTab = ref('gantt')
-const activeFilter = ref('mine')
+const activeFilter = ref('')
 const showSmartSchedule = ref(false)
 const showCreateTask = ref(false)
 const showCreateTaskModal = ref(false)
 const showCreateProject = ref(false)
+const editingProject = ref<any>(null)
 
 const tabs = [
   { key: 'gantt', label: '甘特图', icon: '📊' },
   { key: 'kanban', label: '看板', icon: '📋' },
   { key: 'swimlane', label: '泳道', icon: '🌊' },
   { key: 'member', label: '成员', icon: '👥' },
-  { key: 'milestone', label: '里程碑', icon: '🎯' },
   { key: 'worklog', label: '日志', icon: '📝' },
 ]
 
@@ -241,6 +238,16 @@ const taskForm = ref({
 
 const projectForm = ref({ name: '', description: '' })
 
+function setFilter(key: string) {
+  if (activeFilter.value === key) {
+    activeFilter.value = ''
+    ganttStore.setTaskFilter('')
+  } else {
+    activeFilter.value = key
+    ganttStore.setTaskFilter(key)
+  }
+}
+
 function selectProject(id: string) {
   projectStore.selectProject(id)
   currentProjectId.value = id
@@ -248,6 +255,51 @@ function selectProject(id: string) {
 
 function onProjectChange() {
   projectStore.selectProject(currentProjectId.value)
+}
+
+function openCreateProject() {
+  editingProject.value = null
+  projectForm.value = { name: '', description: '' }
+  showCreateProject.value = true
+}
+
+function openEditProject(p: any) {
+  editingProject.value = p
+  projectForm.value = { name: p.name || '', description: p.description || '' }
+  showCreateProject.value = true
+}
+
+function closeProjectModal() {
+  showCreateProject.value = false
+  editingProject.value = null
+  projectForm.value = { name: '', description: '' }
+}
+
+async function handleUpdateProject() {
+  if (!editingProject.value || !projectForm.value.name) return
+  try {
+    await projectStore.updateProject(editingProject.value.projectId, {
+      name: projectForm.value.name,
+      description: projectForm.value.description,
+    })
+    await projectStore.fetchProjects()
+    ElMessage.success('项目已更新')
+    closeProjectModal()
+  } catch (e) {
+    ElMessage.error('更新失败')
+  }
+}
+
+async function handleDeleteProject() {
+  if (!editingProject.value) return
+  if (!confirm(`确认删除项目「${editingProject.value.name}」？`)) return
+  try {
+    await projectStore.deleteProject(editingProject.value.projectId)
+    ElMessage.success('已删除')
+    closeProjectModal()
+  } catch (e) {
+    ElMessage.error('删除失败')
+  }
 }
 
 async function handleCreateTask() {
@@ -480,6 +532,16 @@ watch(activeTab, async (tab) => {
   margin-left: auto;
   font-size: 10px;
   color: var(--text-faint);
+}
+.project-item:hover .project-item-actions {
+  opacity: 1;
+}
+.project-item-actions {
+  opacity: 0;
+  font-size: 11px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
 }
 
 /* ── Main Content ── */

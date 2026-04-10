@@ -77,6 +77,7 @@ public class TaskService {
         if (dto.getTitle() != null) task.setTitle(dto.getTitle());
         if (dto.getDescription() != null) task.setDescription(dto.getDescription());
         if (dto.getAssigneeId() != null) task.setAssigneeId(dto.getAssigneeId());
+        if (dto.getProjectId() != null) task.setProjectId(dto.getProjectId());
         if (dto.getStartDate() != null) task.setStartDate(dto.getStartDate());
         if (dto.getEndDate() != null) task.setEndDate(dto.getEndDate());
         // startDate 或 endDate 变化时，自动重新计算 duration（只在新旧两个日期都有值时才计算）
@@ -125,6 +126,10 @@ public class TaskService {
 
     public List<Task> listAll() {
         return taskMapper.selectList(new QueryWrapper<Task>().orderByDesc("created_at"));
+    }
+
+    public List<Task> listByMemberId(String memberId) {
+        return taskMapper.selectByAssigneeId(memberId);
     }
 
     public List<Task> getDownstreamTasks(String taskId) {

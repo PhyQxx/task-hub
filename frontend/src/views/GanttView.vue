@@ -21,6 +21,7 @@
           <el-button size="small" :type="ganttDim === 'member' ? 'primary' : 'default'" @click="ganttDim = 'member'">👤 按人</el-button>
         </el-button-group>
         <el-button size="small" @click="initGantt">刷新</el-button>
+        <el-button v-if="isAdmin" type="default" size="small" @click="showSmartSchedule = true">🧠 智能排程</el-button>
         <el-button type="primary" size="small" @click="openCreateTask">+ 新建任务</el-button>
       </div>
     </div>
@@ -44,6 +45,11 @@
     <!-- 创建任务弹窗 -->
     <el-dialog v-model="showCreateTask" title="新建任务" width="520px" :append-to-body="true">
       <el-form :model="taskForm" label-width="80px">
+        <el-form-item label="项目">
+          <el-select v-model="taskForm.projectId" placeholder="选择项目" style="width: 100%">
+            <el-option v-for="p in projectStore.projects" :key="p.projectId" :label="p.name" :value="p.projectId" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="任务名称">
           <el-input v-model="taskForm.title" placeholder="请输入任务名称" />
         </el-form-item>
@@ -80,9 +86,14 @@
         <el-form-item label="任务名称">
           <el-input v-model="editTaskForm.title" placeholder="请输入任务名称" />
         </el-form-item>
+        <el-form-item label="项目">
+          <el-select v-model="editTaskForm.projectId" placeholder="选择项目" style="width: 100%" :disabled="!isAdmin">
+            <el-option v-for="p in projectStore.projects" :key="p.projectId" :label="p.name" :value="p.projectId" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="负责人">
           <el-select v-model="editTaskForm.assigneeId" placeholder="选择负责人" clearable :disabled="!isAdmin">
-            <el-option v-for="m in memberStore.members" :key="m.id" :label="m.name" :value="m.id" />
+            <el-option v-for="m in memberStore.members" :key="m.memberId" :label="m.nickname" :value="m.memberId" />
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
@@ -120,23 +131,25 @@
         <el-button type="primary" @click="handleUpdateTask">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 智能排程弹窗 -->
+    <SmartScheduleModal :visible="showSmartSchedule" @close="showSmartSchedule = false" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import gantt from 'dhtmlx-gantt'
 import 'dhtmlx-gantt/codebase/dhtmlxgantt.css'
-import { useProjectStore, useGanttStore, useMemberStore, useTaskStore, useAuthStore } from '@/stores'
-import { taskApi } from '@/api'
+import {useAuthStore, useGanttStore, useMemberStore, useProjectStore, useTaskStore} from '@/stores'
+import {taskApi} from '@/api'
 import dayjs from 'dayjs'
-import { computed } from 'vue'
 import StatsBar from '@/components/StatsBar.vue'
+import SmartScheduleModal from '@/components/SmartScheduleModal.vue'
 
 const projectStore = useProjectStore()
 const ganttStore = useGanttStore()
 const memberStore = useMemberStore()
-const taskStore = useTaskStore()
 const authStore = useAuthStore()
 
 // 角色判断
@@ -146,6 +159,7 @@ const ganttContainer = ref<HTMLElement>()
 const ganttInstance = ref<any>(null)
 const showCreateTask = ref(false)
 const showEditTask = ref(false)
+const showSmartSchedule = ref(false)
 const timeScale = ref<'day' | 'week' | 'month' | 'quarter'>('week')
 const ganttDim = ref<'task' | 'member'>('task')
 const timeScales = [
@@ -154,6 +168,20 @@ const timeScales = [
   { key: 'month', label: '月' },
   { key: 'quarter', label: '季' },
 ]
+
+// ganttDim 切换后重渲染
+watch(ganttDim, async () => {
+  if (!ganttInited) return
+  gantt.clearAll()
+  if (ganttContainer.value) ganttContainer.value.innerHTML = ''
+  ganttInited = false
+  await nextTick()
+  initGanttConfig()
+  await nextTick()
+  gantt.init(ganttContainer.value!)
+  ganttInited = true
+  await loadGanttData()
+})
 
 // 任务统计
 const taskStats = computed(() => {
@@ -194,6 +222,7 @@ const memberTaskCount = computed(() => {
 })
 
 const taskForm = ref({
+  projectId: '',
   title: '',
   assigneeId: '',
   startDate: '',
@@ -205,10 +234,11 @@ const taskForm = ref({
 // 新建任务时自动设置负责人为当前用户
 function openCreateTask() {
   taskForm.value = {
+    projectId: projectStore.currentProjectId || '',
     title: '',
     assigneeId: authStore.memberId || '',
-    startDate: dayjs().format('YYYY-MM-DD'),
-    endDate: dayjs().add(1, 'day').format('YYYY-MM-DD'),
+    startDate: '',
+    endDate: '',
     priority: 'MEDIUM',
     description: '',
   }
@@ -217,6 +247,7 @@ function openCreateTask() {
 
 const editTaskForm = ref({
   taskId: '',
+  projectId: '',
   title: '',
   assigneeId: '',
   startDate: '',
@@ -232,10 +263,20 @@ let ganttInited = false
 async function loadGanttData() {
   const projectId = projectStore.currentProjectId
   await ganttStore.fetchGanttData(projectId || '')
-  const { tasks, links } = ganttStore.ganttData
+  let { tasks, links } = ganttStore.ganttData
+
+  // 快捷筛选
+  const f = ganttStore.taskFilter
+  if (f) {
+    const todayStr = dayjs().format('YYYY-MM-DD')
+    if (f === 'mine') tasks = tasks.filter((t: any) => t.assigneeId === authStore.memberId || t.assignee_id === authStore.memberId)
+    else if (f === 'today') tasks = tasks.filter((t: any) => t.end_date === todayStr || t.endDate === todayStr)
+    else if (f === 'blocked') tasks = tasks.filter((t: any) => t.status === 'BLOCKED')
+    else if (f === 'owner') tasks = tasks.filter((t: any) => t.assigneeId === authStore.memberId || t.assignee_id === authStore.memberId)
+  }
 
   const today = new Date()
-  const normalizedTasks = (tasks || [])
+  let normalizedTasks = (tasks || [])
     .filter((t: any) => t.text && t.text.trim() && t.start_date)
     .map((t: any) => {
       let startDate: Date
@@ -247,7 +288,7 @@ async function loadGanttData() {
       }
       // 保留所有任务字段（description、priority、status 等）传给 gantt，
       // 以便 lightbox 能正确回显，后续保存也能取到所有字段
-      const { end_date, ...rest } = t as any
+      const { end_date, project_id, ...rest } = t as any
       let endDate: Date | undefined
       if (end_date) {
         try {
@@ -257,6 +298,7 @@ async function loadGanttData() {
       }
       return {
         ...rest,
+        projectId: project_id || rest.projectId,
         id: t.id || String(Math.random()),
         text: t.text || '(无标题)',
         start_date: startDate,
@@ -265,8 +307,41 @@ async function loadGanttData() {
         progress: t.progress ?? 0,
         parent: t.parent ?? 0,
         open: true,
+        assigneeName: t.assignee_name || t.assigneeName || '',  // 后端返回 snake_case，转换为 camelCase 供 gantt 列使用
       }
     })
+
+  // 按人维度：注入虚拟父任务（同 dhtmlx-gantt 免费版 tree 分组效果）
+  if (ganttDim.value === 'member') {
+    const memberGroups: Record<string, any[]> = {}
+    normalizedTasks.forEach((t: any) => {
+      const key = t.assigneeName || '未分配'
+      if (!memberGroups[key]) memberGroups[key] = []
+      memberGroups[key].push(t)
+    })
+    const virtualParents: any[] = []
+    const memberPrefix = '__member_'
+    Object.entries(memberGroups).forEach(([name, groupTasks]) => {
+      const pid = memberPrefix + name
+      // 虚拟父任务的日期取该组最早开始和最晚结束
+      const starts = groupTasks.map((t: any) => t.start_date as Date).filter(Boolean).sort((a, b) => a.getTime() - b.getTime())
+      const ends = groupTasks.map((t: any) => t.end_date as Date).filter(Boolean).sort((a, b) => b.getTime() - a.getTime())
+      virtualParents.push({
+        id: pid,
+        text: name,
+        start_date: starts[0] || today,
+        end_date: ends[0] || today,
+        duration: 1,
+        progress: 0,
+        parent: 0,
+        open: true,
+        isVirtual: true,
+        isGroup: true,
+      })
+      groupTasks.forEach((t: any) => { t.parent = pid })
+    })
+    normalizedTasks = [...virtualParents, ...normalizedTasks]
+  }
 
   const numericLinks = (links || []).map((l: any) => ({
     ...l,
@@ -274,11 +349,46 @@ async function loadGanttData() {
   }))
 
   try {
+    applyTimeScale()
     gantt.clearAll()
     gantt.parse({ data: normalizedTasks, links: numericLinks || [] })
     gantt.render()
   } catch(e) {
     console.error('[Gantt] ERROR:', e)
+  }
+}
+
+function applyTimeScale() {
+  // dhtmlx-gantt v9 使用 config.scales 数组替代旧的 scale_unit + subscales
+  switch (timeScale.value) {
+    case 'day':
+      gantt.config.scales = [
+        { unit: 'day', step: 1, date: '%m-%d' },
+      ]
+      break
+    case 'week':
+      gantt.config.scales = [
+        { unit: 'week', step: 1, date: '第%W周' },
+        { unit: 'day', step: 1, date: '%m-%d' },
+      ]
+      break
+    case 'month':
+      gantt.config.scales = [
+        { unit: 'month', step: 1, date: '%F %Y' },
+        { unit: 'day', step: 1, date: '%m-%d' },
+      ]
+      break
+    case 'quarter':
+      gantt.config.scales = [
+        { unit: 'month', step: 1, template: (date: Date) => `Q${Math.floor(date.getMonth() / 3) + 1} ${date.getFullYear()}` },
+        { unit: 'day', step: 1, date: '%m-%d' },
+      ]
+      break
+    default:
+      gantt.config.scales = [
+        { unit: 'week', step: 1, date: '第%W周' },
+        { unit: 'day', step: 1, date: '%m-%d' },
+      ]
   }
 }
 
@@ -339,9 +449,7 @@ function initGanttConfig() {
   gantt.config.row_height = 40
   gantt.config.bar_height = 28
   gantt.config.date_format = '%Y-%m-%d'
-  gantt.config.scale_unit = 'day'
-  gantt.config.date_scale = '%d %M'
-  gantt.config.subscales = [{ unit: 'week', step: 1, date: '第%W周' }]
+  applyTimeScale()
   gantt.config.show_progress = true
   gantt.config.auto_types = true
   gantt.config.duration_unit = 'day'  // 工期单位为天
@@ -354,6 +462,7 @@ function initGanttConfig() {
   gantt.config.fit_tasks = true
   gantt.config.initial_scroll = true
   gantt.config.dblclick_create = false  // 禁用双击创建（用 lightbox 编辑）
+  gantt.config.details_on_dblclick = true  // 双击打开 lightbox 编辑
 
   // 自定义 lightbox sections（完全控制标签文字）
   gantt.config.lightbox = {
@@ -465,8 +574,13 @@ function initGanttConfig() {
   })
 
   // 列配置
-  gantt.config.columns = [
+  const baseColumns = [
     { name: 'text', label: '任务名称', tree: true, width: 200, resize: true },
+    { name: 'projectName', label: '项目', align: 'center', width: 120, template: (task: any) => {
+      if (!task.projectId) return '—'
+      const p = projectStore.projects.find((x: any) => x.projectId === task.projectId)
+      return p ? p.name : (task.projectId || '—')
+    }},
     { name: 'assigneeName', label: '负责人', align: 'center', width: 80, template: (task: any) => task.assigneeName || '未分配' },
     { name: 'start_date', label: '开始', align: 'center', width: 90 },
     { name: 'end_date', label: '结束', align: 'center', width: 90, template: (task: any) => {
@@ -474,7 +588,12 @@ function initGanttConfig() {
       return ''
     }},
     { name: 'duration', label: '天数', align: 'center', width: 50 },
+    { name: 'progress', label: '进度', align: 'center', width: 70, template: (task: any) => {
+      const p = task.progress ?? 0
+      return Math.round(p * 100) + '%'
+    }},
   ]
+  gantt.config.columns = baseColumns
 
   // 根据任务状态显示不同颜色的任务条
   gantt.templates.task_class = (start: any, end: any, task: any) => {
@@ -489,6 +608,23 @@ function initGanttConfig() {
   }
   gantt.templates.grid_row_class = () => ''
   gantt.templates.bar_class = () => ''
+  // 按人分组：虚拟父行高亮
+  if (ganttDim.value === 'member') {
+    gantt.templates.grid_row_class = (start: any, end: any, task: any) => {
+      return task.isVirtual ? 'gantt-virtual-parent' : ''
+    }
+    gantt.templates.task_class = (start: any, end: any, task: any) => {
+      if (task.isVirtual) return 'gantt-virtual-parent'
+      const status = task.status || 'TODO'
+      const statusMap: Record<string, string> = {
+        'TODO': 'gantt-status-todo',
+        'IN_PROGRESS': 'gantt-status-progress',
+        'DONE': 'gantt-status-done',
+        'BLOCKED': 'gantt-status-blocked',
+      }
+      return statusMap[status] || 'gantt-status-todo'
+    }
+  }
 }
 
 async function initGantt() {
@@ -500,18 +636,31 @@ async function initGantt() {
     gantt.init(ganttContainer.value)
     ganttInstance.value = gantt
     ganttInited = true
+  } else {
+    // 刻度切换时：重置 gantt 实例，清除 DOM，重新初始化
+    gantt.clearAll()
+    if (ganttContainer.value) {
+      ganttContainer.value.innerHTML = ''
+    }
+    ganttInited = false
+    await nextTick()
+    initGanttConfig()
+    await nextTick()
+    gantt.init(ganttContainer.value)
+    ganttInited = true
+    await loadGanttData()
+    return
   }
   await loadGanttData()
 }
 
 async function handleCreateTask() {
   if (!taskForm.value.title) return
-  const projectId = projectStore.currentProjectId;
-  if (!projectId) return
+  if (!taskForm.value.projectId) return
 
   try {
     await taskApi.create({
-      projectId,
+      projectId: taskForm.value.projectId,
       title: taskForm.value.title,
       assigneeId: authStore.memberId || undefined,
       startDate: taskForm.value.startDate || dayjs().format('YYYY-MM-DD'),
@@ -522,7 +671,7 @@ async function handleCreateTask() {
       progress: 0,
     })
     showCreateTask.value = false
-    taskForm.value = { title: '', assigneeId: '', startDate: '', endDate: '', priority: 'MEDIUM', description: '' }
+    taskForm.value = { projectId: projectStore.currentProjectId || '', title: '', assigneeId: authStore.memberId || '', startDate: '', endDate: '', priority: 'MEDIUM', description: '' }
     await initGantt()
   } catch (e: any) {
     console.error('创建任务失败', e)
@@ -534,6 +683,7 @@ function openEditTask(taskId: string) {
   if (!task) return
   editTaskForm.value = {
     taskId,
+    projectId: task.projectId || '',
     title: task.text || task.title || '',
     assigneeId: task.assignee_id || '',
     startDate: task.start_date ? dayjs(task.start_date).format('YYYY-MM-DD') : '',
@@ -550,6 +700,7 @@ async function handleUpdateTask() {
   if (!editTaskForm.value.taskId) return
   try {
     await taskApi.update(editTaskForm.value.taskId, {
+      projectId: editTaskForm.value.projectId,
       title: editTaskForm.value.title,
       assigneeId: editTaskForm.value.assigneeId || undefined,
       startDate: editTaskForm.value.startDate,
@@ -590,14 +741,50 @@ onMounted(async () => {
 
   // 点击任务打开编辑弹窗
   gantt.attachEvent('onClickTask', (taskId: string) => {
+    console.log('[onClickTask] taskId:', taskId)
     openEditTask(taskId)
     return true
   })
 
-  // 拖拽保存
+  // 记录拖拽前的任务数据，用于判断是否为真实拖拽
+  let dragOriginalTask: any = null
+
+  // 拖拽开始前记录原始数据
+  gantt.attachEvent('onBeforeTaskDrag', (_id: string, mode: string, e: any) => {
+    const id = gantt.getState().task_id
+    if (id) {
+      const task = gantt.getTask(id)
+      dragOriginalTask = task ? { start_date: task.start_date, end_date: task.end_date, progress: task.progress } : null
+    }
+    return true
+  })
+
+  // 双击任务打开编辑弹窗（gantt 的 onDblClick）
+  gantt.attachEvent('onDblClick', (taskId: string) => {
+    console.log('[onDblClick] taskId:', taskId)
+    if (taskId) {
+      openEditTask(taskId)
+    }
+    return true
+  })
+
+  // 拖拽保存（区分真实拖拽和双击误触发）
   gantt.attachEvent('onAfterTaskDrag', async (id: string, mode: string, e: any) => {
     const task = gantt.getTask(id) as any
     console.log('[Drag] id:', id, 'mode:', mode, 'start:', task.start_date, 'end:', task.end_date, 'progress:', task.progress)
+    // 判断是否为真实拖拽：无原始数据 或 位置无变化
+    const isRealDrag = dragOriginalTask && (
+      task.start_date?.getTime() !== dragOriginalTask.start_date?.getTime() ||
+      task.end_date?.getTime() !== dragOriginalTask.end_date?.getTime() ||
+      task.progress !== dragOriginalTask.progress
+    )
+    dragOriginalTask = null
+    if (!isRealDrag) {
+      // 无真实位移，双击打开编辑弹窗
+      console.log('[Drag] no movement, opening edit dialog')
+      openEditTask(id)
+      return
+    }
     try {
       await taskApi.update(id, {
         startDate: task.start_date ? dayjs(task.start_date).format('YYYY-MM-DD') : undefined,
@@ -778,6 +965,46 @@ onBeforeUnmount(() => {
 }
 :deep(.gantt_row, .gantt_cell) {
   border-color: var(--border-light) !important;
+}
+/* 虚拟父任务行（按人分组） */
+:deep(.gantt-virtual-parent) {
+  background: var(--surface-2) !important;
+  font-weight: 700;
+  color: var(--text) !important;
+}
+:deep(.gantt-virtual-parent .gantt_cell) {
+  background: var(--surface-2) !important;
+  font-weight: 700;
+}
+
+/* 时间刻度按钮 */
+.time-scale-group {
+  display: flex;
+  gap: 2px;
+  background: var(--surface-3);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 3px;
+}
+.scale-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-weight: 500;
+}
+.scale-btn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.scale-btn.active {
+  background: var(--primary-color, #3370ff);
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(51, 112, 255, 0.3);
 }
 </style>
 

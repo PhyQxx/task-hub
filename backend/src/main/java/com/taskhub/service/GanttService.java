@@ -64,6 +64,7 @@ public class GanttService {
         vo.setPriority(task.getPriority());
         vo.setDescription(task.getDescription());
         vo.setAssignee_id(task.getAssigneeId());
+        vo.setProject_id(task.getProjectId());
         vo.setIs_milestone(task.getIsMilestone());
         vo.setMilestone_date(task.getMilestoneDate());
 

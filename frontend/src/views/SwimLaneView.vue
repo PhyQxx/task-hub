@@ -124,10 +124,10 @@ const swimLanes = computed(() => {
   const members = memberStore.members
   const tasks = taskStore.tasks
   const lanes = members.map(m => ({
-    memberId: m.id,
-    memberName: m.name,
+    memberId: m.memberId,
+    memberName: m.nickname,
     memberAvatar: m.avatar,
-    tasks: tasks.filter(t => t.assigneeId === m.id),
+    tasks: tasks.filter(t => t.assigneeId === m.memberId),
   }))
   // 加上未分配泳道
   const unassigned = tasks.filter(t => !t.assigneeId)
@@ -172,47 +172,56 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 24px;
+  padding: 20px 24px;
   gap: 16px;
   overflow: auto;
+  background: #f7f8fc;
 }
+
+/* Header */
 .swimlane-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #222226;
-  padding: 12px 16px;
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.05);
+  background: #fff;
+  padding: 14px 20px;
+  border-radius: 10px;
+  border: 1px solid #e5e6eb;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
 }
-.project-name { font-weight: 590; font-size: 13px; color: var(--text); }
+.project-name { font-weight: 600; font-size: 14px; color: #1f2329; }
+
+/* Board */
 .swimlane-board {
   flex: 1;
   overflow: auto;
-  background: #191a1b;
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.05);
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #e5e6eb;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
   max-height: 560px;
 }
+
+/* Time scale header */
 .time-scale {
   display: flex;
   position: sticky;
   top: 0;
   z-index: 10;
-  background: #222226;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  background: #fff;
+  border-bottom: 1px solid #e5e6eb;
   min-width: 1080px;
 }
 .lane-label-spacer {
   width: 180px;
   min-width: 180px;
-  border-right: 1px solid rgba(255,255,255,0.05);
-  padding: 8px 12px;
+  border-right: 1px solid #e5e6eb;
+  padding: 10px 14px;
   font-size: 11px;
-  font-weight: 590;
-  color: #62666d;
+  font-weight: 600;
+  color: #86909c;
   text-transform: uppercase;
-  letter-spacing: 0.36px;
+  letter-spacing: 0.5px;
 }
 .time-ticks { display: flex; }
 .tick {
@@ -220,33 +229,43 @@ onMounted(async () => {
   flex-shrink: 0;
   text-align: center;
   font-size: 12px;
-  font-weight: 590;
-  color: #8a8f98;
-  padding: 10px 8px;
-  border-right: 1px solid rgba(255,255,255,0.04);
+  font-weight: 500;
+  color: #646a73;
+  padding: 10px 0;
+  border-right: 1px solid #f1f2f5;
   font-variant-numeric: tabular-nums;
 }
-.tick.today { color: var(--primary); background: rgba(91,90,255,0.08); }
+.tick.today { color: #3370ff; background: rgba(51,112,255,0.06); }
+
+/* Swimlane rows */
 .swimlane-row {
   display: flex;
   min-width: 1080px;
   height: 64px;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
+  border-bottom: 1px solid #f1f2f5;
+  transition: background 0.15s;
 }
+.swimlane-row:last-child { border-bottom: none; }
+.swimlane-row:hover { background: #f7f8fc; }
+
+/* Lane label (sticky left) */
 .lane-label {
   width: 180px;
   min-width: 180px;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
-  border-right: 1px solid rgba(255,255,255,0.05);
+  padding: 0 14px;
+  border-right: 1px solid #e5e6eb;
   position: sticky;
   left: 0;
-  background: #0f1011;
+  background: #fff;
   z-index: 5;
 }
-.lane-name { font-size: 13px; font-weight: 590; color: var(--text-secondary); }
+.swimlane-row:hover .lane-label { background: #f7f8fc; }
+.lane-name { font-size: 13px; font-weight: 500; color: #1f2329; }
+
+/* Timeline */
 .lane-timeline {
   flex: 1;
   position: relative;
@@ -264,33 +283,40 @@ onMounted(async () => {
   width: 120px;
   flex-shrink: 0;
   height: 100%;
-  border-right: 1px solid rgba(255,255,255,0.04);
+  border-right: 1px solid #f1f2f5;
 }
-.grid-cell.today { background: rgba(91,90,255,0.06); }
-.grid-cell.weekend { background: rgba(0,0,0,0.15); }
+.grid-cell.today { background: rgba(51,112,255,0.05); }
+.grid-cell.weekend { background: #fafafa; }
+
+/* Task bars */
 .task-bar {
   position: absolute;
-  top: 18px;
-  height: 28px;
-  border-radius: 5px;
+  top: 16px;
+  height: 32px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
-  padding: 0 8px;
+  padding: 0 10px;
   cursor: pointer;
   font-size: 12px;
+  font-weight: 500;
   color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-  transition: filter 0.12s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  transition: box-shadow 0.15s, transform 0.12s;
   min-width: 20px;
 }
-.task-bar:hover { filter: brightness(1.15); }
-.task-bar.status-todo { background: linear-gradient(90deg,#6366F1,#4F46E5); }
-.task-bar.status-in_progress { background: linear-gradient(90deg,#10B981,#059669); }
-.task-bar.status-blocked { background: linear-gradient(90deg,#ef4444,#dc2626); }
-.task-bar.status-done { background: linear-gradient(90deg,#34D399,#10B981); opacity: 0.7; }
+.task-bar:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  transform: translateY(-1px);
+}
+.task-bar.status-todo    { background: #3370ff; }
+.task-bar.status-in_progress { background: #00b42a; }
+.task-bar.status-blocked { background: #f53f3f; }
+.task-bar.status-done    { background: #cad2ff; color: #2f50b8; box-shadow: none; }
+.task-bar.status-done:hover { box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
 .task-bar-text {
   position: relative;
   z-index: 1;
@@ -298,10 +324,22 @@ onMounted(async () => {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.task-progress-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: rgba(255,255,255,0.25);
+  border-radius: 6px;
+  z-index: 0;
+  transition: width 0.3s;
+}
+.task-bar.status-done .task-progress-bar { background: rgba(255,255,255,0.4); }
+
 .empty-state {
   text-align: center;
-  padding: 40px;
-  color: var(--text-faint);
+  padding: 48px;
+  color: #86909c;
   font-size: 13px;
 }
 </style>

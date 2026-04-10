@@ -114,7 +114,7 @@ CREATE TABLE members (
     id              BIGINT PRIMARY KEY AUTO_INCREMENT,
     member_id       VARCHAR(64) NOT NULL UNIQUE COMMENT '成员ID',
     nickname        VARCHAR(64) NOT NULL COMMENT '成员昵称',
-    role            VARCHAR(32) NOT NULL COMMENT '角色：PD/PM/Dev/Des/QA/Ops',
+    role            VARCHAR(32) NOT NULL COMMENT '角色：admin/user',
     skills          JSON COMMENT '技能标签数组，如["React","Python"]',
     weekly_capacity FLOAT DEFAULT 40.0 COMMENT '周标准工时（小时）',
     is_active       TINYINT DEFAULT 1 COMMENT '是否在职，1=在职，0=离职',

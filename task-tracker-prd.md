@@ -233,7 +233,7 @@ score = 100 - currentLoadPct × 0.7 - skillMismatchPenalty × 0.3
 |------|------|------|
 | memberId | string | 成员唯一ID，与 Agent ID 对应 |
 | nickname | string | 成员昵称 |
-| role | string | 角色：PD / PM / Dev / Des / QA / Ops |
+| role | string | 角色：admin/user |
 | skills | array | 技能标签，如 ["前端", "React", "Python"] |
 | weeklyCapacity | float | 周标准工时，默认40小时 |
 | isActive | bool | 是否在职，默认 true |

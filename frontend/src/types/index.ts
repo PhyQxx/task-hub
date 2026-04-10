@@ -10,6 +10,7 @@ export interface ApiResponse<T> {
 // 项目
 export interface Project {
   id: string
+  projectId: string
   name: string
   description?: string
   status: 'ACTIVE' | 'ARCHIVED'
@@ -17,19 +18,21 @@ export interface Project {
   updatedAt: string
 }
 
-// 成员
+// 成员（与后端 Member 实体字段对齐）
 export interface Member {
-  id: string
-  name: string
+  id: number
+  memberId: string
+  nickname: string
   avatar?: string
-  role: 'PM' | 'DEV' | 'DESIGN' | 'TEST' | 'OPS'
+  role: string
   email?: string
   createdAt: string
 }
 
 // 任务
 export interface Task {
-  id: string
+  id: string | number
+  taskId?: string  // 业务ID，如 TT-20260410-001
   projectId: string
   title: string
   description?: string

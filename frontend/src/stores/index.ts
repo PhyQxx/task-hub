@@ -7,21 +7,46 @@ import { projectApi, taskApi, ganttApi, memberApi, workLogApi } from '@/api'
 export const useProjectStore = defineStore('project', () => {
   const projects = ref<Project[]>([])
   const currentProjectId = ref<string>('')
-  const currentProject = computed(() => projects.value.find(p => p.id === currentProjectId.value))
+  const currentProject = computed(() => projects.value.find(p => p.projectId === currentProjectId.value))
 
   async function fetchProjects() {
     const res = await projectApi.list()
-    projects.value = res.data || []
+    projects.value = (res.data || []).map((p: any) => ({
+      ...p,
+      projectId: p.project_id || p.projectId || p.id,
+    }))
     if (projects.value.length && !currentProjectId.value) {
-      currentProjectId.value = projects.value[0].id
+      currentProjectId.value = projects.value[0].projectId
     }
   }
 
-  function selectProject(id: string) {
+  async function selectProject(id: string) {
     currentProjectId.value = id
   }
 
-  return { projects, currentProjectId, currentProject, fetchProjects, selectProject }
+  async function deleteProject(id: string) {
+    await projectApi.delete(id)
+    projects.value = projects.value.filter(p => p.projectId !== id)
+    if (currentProjectId.value === id) {
+      currentProjectId.value = projects.value[0]?.projectId || ''
+    }
+  }
+
+  async function updateProject(id: string, data: Partial<Project>) {
+    const res = await projectApi.update(id, data)
+    const updated = res.data
+    if (updated) {
+      // 保证新对象有 projectId 字段
+      const normalized: Project = {
+        ...updated,
+        projectId: updated.project_id || updated.projectId || updated.id,
+      } as Project
+      const idx = projects.value.findIndex(p => p.projectId === id)
+      if (idx !== -1) projects.value[idx] = normalized
+    }
+  }
+
+  return { projects, currentProjectId, currentProject, fetchProjects, selectProject, deleteProject, updateProject }
 })
 
 export const useTaskStore = defineStore('task', () => {
@@ -76,15 +101,22 @@ export const useTaskStore = defineStore('task', () => {
 export const useGanttStore = defineStore('gantt', () => {
   const ganttData = ref<GanttDataVO>({ tasks: [], links: [], milestones: [] })
   const loading = ref(false)
+  // 快捷筛选：mine | today | blocked | owner | ''（全部）
+  const taskFilter = ref<string>('')
 
   async function fetchGanttData(projectId: string) {
     loading.value = true
     try {
       const res = await ganttApi.getData(projectId)
-      // 兼容两种响应结构
+      // 兼容两种响应结构，后端返回 snake_case，转为驼峰以匹配前端类型
       const d = res.data ?? {}
+      const rawTasks = d.data || d.tasks || []
+      const tasks = rawTasks.map((t: any) => ({
+        ...t,
+        assigneeName: t.assignee_name || t.assigneeName || '',
+      }))
       ganttData.value = {
-        tasks: d.data || d.tasks || [],
+        tasks,
         links: d.links || [],
         milestones: d.milestones || [],
       }
@@ -93,7 +125,9 @@ export const useGanttStore = defineStore('gantt', () => {
     }
   }
 
-  return { ganttData, loading, fetchGanttData }
+  function setTaskFilter(f: string) { taskFilter.value = f }
+
+  return { ganttData, loading, taskFilter, fetchGanttData, setTaskFilter }
 })
 
 export const useMemberStore = defineStore('member', () => {

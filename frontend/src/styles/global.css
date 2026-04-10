@@ -126,6 +126,20 @@ html, body {
   background: var(--surface-4);
   border-color: transparent;
 }
+.btn-danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.btn-danger:hover {
+  background: var(--danger);
+  color: #fff;
+}
 
 /* 通用输入 */
 input, textarea, select {
