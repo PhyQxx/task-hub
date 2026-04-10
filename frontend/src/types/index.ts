@@ -68,16 +68,16 @@ export interface Milestone {
   createdAt: string
 }
 
-// 工作日志
+// 工作日志（与后端 TaskWorkLog 实体字段对齐）
 export interface WorkLog {
   id: string
+  logId: string
   taskId?: string
   userId: string
-  userName: string
-  date: string // yyyy-MM-dd
-  todayProgress: string
+  date: string          // 对应 logDate，yyyy-MM-dd
+  todayDone: string     // 后端字段：今日完成
   tomorrowPlan: string
-  blockers?: string
+  blockedReason?: string // 后端字段：阻碍原因
   createdAt: string
   updatedAt: string
 }

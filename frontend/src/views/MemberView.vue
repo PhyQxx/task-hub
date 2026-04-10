@@ -3,11 +3,16 @@
     <div class="view-header">
       <span class="view-title">👥 成员视图</span>
       <span class="view-subtitle">团队工作负载一览</span>
-      <!-- 角色筛选 -->
-      <div class="role-filter">
-        <el-select v-model="roleFilter" placeholder="筛选角色" clearable size="small" style="width:140px">
-          <el-option v-for="r in roleOptions" :key="r" :label="r" :value="r" />
-        </el-select>
+      <!-- 关键字搜索 -->
+      <div class="keyword-search">
+        <el-input
+          v-model="keyword"
+          placeholder="搜索成员姓名 / 手机号"
+          clearable
+          size="small"
+          style="width:220px"
+          prefix-icon="Search"
+        />
       </div>
     </div>
 
@@ -28,8 +33,8 @@
       </div>
     </div>
 
-    <!-- 成员列表 -->
-    <div v-else class="member-list">
+    <!-- 成员列表（始终展示，不依赖 roles） -->
+    <div class="member-list">
       <div
         v-for="member in filteredMembers"
         :key="member.memberId"
@@ -99,12 +104,33 @@
             </div>
           </div>
         </div>
+
+        <!-- 任务列表 -->
+        <div class="task-list-section">
+          <div class="task-list-header">
+            <span class="task-list-title">任务列表</span>
+            <span class="task-count-badge">{{ member.tasks?.length || 0 }}</span>
+          </div>
+          <div v-if="member.tasksLoading" class="task-loading">加载中...</div>
+          <div v-else-if="!member.tasks?.length" class="task-empty">暂无任务</div>
+          <div v-else class="task-items">
+            <div v-for="task in member.tasks" :key="task.id" class="task-item">
+              <span class="task-status-dot" :class="'status-' + (task.status || '').toLowerCase()"></span>
+              <span class="task-item-title">{{ task.title }}</span>
+              <span class="task-item-id">{{ task.taskId || '' }}</span>
+              <span :class="['task-priority-badge', 'priority-' + ((task.priority || 'P2').toUpperCase())]">
+                {{ task.priority || 'P2' }}
+              </span>
+              <span class="task-progress-text">{{ task.progress || 0 }}%</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- 空状态 -->
-      <div v-if="members.length === 0" class="empty-state">
+      <div v-if="filteredMembers.length === 0" class="empty-state">
         <div class="empty-icon">👥</div>
-        <div class="empty-text">暂无成员数据</div>
+        <div class="empty-text">{{ keyword ? '未找到匹配的成员' : '暂无成员数据' }}</div>
       </div>
     </div>
   </div>
@@ -119,15 +145,16 @@ const projectStore = useProjectStore()
 const memberStore = useMemberStore()
 const members = ref<any[]>([])
 const loading = ref(false)
-const roleFilter = ref('')
-const roleOptions = ref<string[]>([
-  '项目经理', '设计师', '开发者', '前端开发', '测试工程师', '运维工程师', '产品经理', '其他'
-])
+const keyword = ref('')
 
-// 根据角色筛选成员
+// 关键字搜索（姓名或手机号）
 const filteredMembers = computed(() => {
-  if (!roleFilter.value) return members.value
-  return members.value.filter(m => m.role === roleFilter.value)
+  if (!keyword.value.trim()) return members.value
+  const kw = keyword.value.trim().toLowerCase()
+  return members.value.filter(m =>
+    (m.nickname || '').toLowerCase().includes(kw) ||
+    (m.phone || '').toLowerCase().includes(kw)
+  )
 })
 
 interface LoadData {
@@ -185,15 +212,23 @@ async function loadMembers() {
   try {
     const res = await memberApi.list()
     members.value = (res.data || []).map((m: any) => ({ ...m }))
-    // Load trend for each member
-    for (const m of members.value) {
+    // Load trend and tasks for each member in parallel
+    await Promise.all(members.value.map(async (m) => {
+      m.tasksLoading = true
       try {
-        const trendRes = await memberApi.loadTrend(m.memberId)
+        const [trendRes, tasksRes] = await Promise.all([
+          memberApi.loadTrend(m.memberId),
+          memberApi.memberTasks(m.memberId),
+        ])
         m.loadData = trendRes.data || {}
+        m.tasks = tasksRes.data || []
       } catch {
         m.loadData = {}
+        m.tasks = []
+      } finally {
+        m.tasksLoading = false
       }
-    }
+    }))
   } catch (err) {
     console.error('Failed to load members', err)
   } finally {
@@ -253,7 +288,7 @@ onMounted(async () => {
   flex-wrap: wrap;
 }
 
-.role-filter {
+.keyword-search {
   margin-left: auto;
 }
 
@@ -482,6 +517,95 @@ onMounted(async () => {
   font-size: 9px;
   color: var(--text-faint);
   white-space: nowrap;
+}
+
+/* Task list */
+.task-list-section {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.task-list-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.task-list-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.task-count-badge {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: var(--primary-bg);
+  color: var(--primary);
+  font-weight: 500;
+}
+.task-loading, .task-empty {
+  font-size: 12px;
+  color: var(--text-faint);
+  text-align: center;
+  padding: 8px 0;
+}
+.task-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 5px;
+  font-size: 12px;
+  transition: background 0.12s;
+}
+.task-item:hover { background: var(--surface-3); }
+.task-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-pending, .status-todo { background: #86909c; }
+.status-in_progress, .status-progress { background: #3370ff; }
+.status-blocked { background: #f53f3f; }
+.status-done, .status-completed { background: #00b42a; }
+.task-item-title {
+  flex: 1;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.task-item-id {
+  font-size: 10px;
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+.task-priority-badge {
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.priority-P0, .priority-URGENT { background: rgba(245,63,63,0.12); color: #f53f3f; }
+.priority-P1, .priority-HIGH   { background: rgba(245,158,11,0.12); color: #c26c00; }
+.priority-P2, .priority-MEDIUM  { background: rgba(100,181,246,0.12); color: #64b5f6; }
+.priority-P3, .priority-LOW     { background: rgba(100,181,246,0.08); color: #86909c; }
+.task-progress-text {
+  font-size: 10px;
+  color: var(--text-faint);
+  flex-shrink: 0;
+  min-width: 28px;
+  text-align: right;
 }
 
 .empty-state {

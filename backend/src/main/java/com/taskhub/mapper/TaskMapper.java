@@ -18,6 +18,9 @@ public interface TaskMapper extends BaseMapper<Task> {
     @Select("SELECT * FROM tasks WHERE assignee_id = #{assigneeId} AND status != 'completed'")
     List<Task> selectActiveByAssigneeId(@Param("assigneeId") String assigneeId);
 
+    @Select("SELECT * FROM tasks WHERE assignee_id = #{assigneeId}")
+    List<Task> selectByAssigneeId(@Param("assigneeId") String assigneeId);
+
     @Select("SELECT * FROM tasks WHERE start_date >= #{startDate} AND end_date <= #{endDate} AND project_id = #{projectId}")
     List<Task> selectByProjectIdAndDateRange(@Param("projectId") String projectId,
                                               @Param("startDate") LocalDate startDate,

@@ -1,75 +1,123 @@
 <template>
   <div class="worklog-view">
+    <!-- 顶部标题栏 -->
     <div class="worklog-header">
-      <span class="project-name">{{ projectStore.currentProject?.name || '请选择项目' }}</span>
-      <el-date-picker
-        v-model="logDate"
-        type="date"
-        format="YYYY-MM-DD"
-        value-format="YYYY-MM-DD"
-        size="small"
-        style="width: 160px"
-      />
+      <div class="header-left">
+        <span class="header-icon">📋</span>
+        <div>
+          <div class="header-title">工作日志</div>
+          <div class="header-subtitle">记录每日进展，追踪团队进度</div>
+        </div>
+      </div>
     </div>
 
-    <!-- 日志填写区 -->
+    <!-- 填写区域 -->
     <div class="log-form-card">
-      <div class="card-title">📝 {{ logDate }} 工作日志</div>
-
-      <el-form :model="logForm" label-width="100px" class="log-form">
-        <el-form-item label="关联任务">
-          <el-select v-model="logForm.taskId" placeholder="选择关联任务（可选）" clearable filterable>
-            <el-option v-for="t in taskStore.tasks" :key="t.id" :label="t.title" :value="t.id" />
-          </el-select>
-        </el-form-item>
-
-        <el-form-item label="🔵 今日进展">
-          <el-input
-            v-model="logForm.todayProgress"
-            type="textarea"
-            :rows="4"
-            placeholder="今天完成了哪些工作？"
+      <div class="card-title">📝 填写日志</div>
+      <el-form class="log-form" label-position="top" size="large">
+        <!-- 日期选择 -->
+        <el-form-item label="日期">
+          <el-date-picker
+            v-model="logDate"
+            type="date"
+            placeholder="选择日期"
+            format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD"
+            style="width: 200px"
           />
         </el-form-item>
 
+        <!-- 任务标签 -->
+        <el-form-item label="关联任务">
+          <el-select
+            v-model="logForm.taskId"
+            placeholder="选择关联任务（可选）"
+            clearable
+            filterable
+            style="width: 100%"
+          >
+            <el-option
+              v-for="task in taskStore.tasks"
+              :key="task.id"
+              :label="`${task.taskId || ''} ${task.title}`"
+              :value="String(task.id)"
+            />
+          </el-select>
+        </el-form-item>
+
+        <!-- 今日进展 -->
+        <el-form-item label="🔵 今日进展" required>
+          <el-input
+            v-model="logForm.todayProgress"
+            type="textarea"
+            :rows="3"
+            placeholder="今天完成了哪些工作？"
+            maxlength="500"
+            show-word-limit
+          />
+        </el-form-item>
+
+        <!-- 明日计划 -->
         <el-form-item label="🗓 明日计划">
           <el-input
             v-model="logForm.tomorrowPlan"
             type="textarea"
-            :rows="4"
+            :rows="2"
             placeholder="明天计划做什么？"
+            maxlength="300"
+            show-word-limit
           />
         </el-form-item>
 
-        <el-form-item label="⚠️ 阻碍/风险">
+        <!-- 阻碍风险 -->
+        <el-form-item label="⚠️ 阻碍风险">
           <el-input
             v-model="logForm.blockers"
             type="textarea"
             :rows="2"
-            placeholder="有遇到什么阻碍吗？（可选）"
+            placeholder="遇到什么阻碍或风险？"
+            maxlength="300"
+            show-word-limit
           />
         </el-form-item>
 
         <el-form-item>
-          <el-button type="primary" @click="handleSaveLog" :loading="saving">
-            保存日志
-          </el-button>
-          <el-button @click="handleReset">重置</el-button>
+          <div class="form-actions">
+            <el-button @click="handleReset">重置</el-button>
+            <el-button type="primary" :loading="saving" @click="handleSaveLog">
+              保存日志
+            </el-button>
+          </div>
         </el-form-item>
       </el-form>
     </div>
 
     <!-- 历史日志列表 -->
     <div class="log-history">
-      <div class="history-title">历史日志</div>
+      <div class="history-header">
+        <div class="history-title">📜 历史日志</div>
+        <div class="history-filter">
+          <span class="filter-label">筛选：</span>
+          <el-date-picker
+            v-model="filterDate"
+            type="date"
+            placeholder="选择日期查看"
+            format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD"
+            clearable
+            style="width: 180px"
+            @change="fetchLogs"
+          />
+        </div>
+      </div>
 
       <div v-loading="loading" class="log-list">
-        <el-empty v-if="!logs.length" description="暂无历史日志" />
+        <el-empty v-if="!logs.length" :description="filterDate ? '该日期暂无日志' : '暂无历史日志'" />
 
         <div v-for="log in logs" :key="log.id" class="log-item">
           <div class="log-item-header">
             <div class="log-meta">
-              <span class="log-date">{{ log.date }}</span>
+              <span class="log-date-badge">{{ log.date }}</span>
               <span v-if="log.taskId" class="log-task-tag">
                 {{ getTaskTitle(log.taskId) }}
               </span>
@@ -77,17 +125,30 @@
             <el-button size="small" text type="primary" @click="handleEdit(log)">编辑</el-button>
           </div>
 
-          <div class="log-section">
-            <span class="section-label">🔵 今日进展：</span>
-            <span class="section-text">{{ log.todayProgress }}</span>
-          </div>
-          <div class="log-section">
-            <span class="section-label">🗓 明日计划：</span>
-            <span class="section-text">{{ log.tomorrowPlan }}</span>
-          </div>
-          <div v-if="log.blockers" class="log-section blockers">
-            <span class="section-label">⚠️ 阻碍：</span>
-            <span class="section-text">{{ log.blockers }}</span>
+          <div class="log-body">
+            <div class="log-section today-progress">
+              <div class="section-icon">🔵</div>
+              <div class="section-content">
+                <div class="section-label">今日进展</div>
+                <div class="section-text">{{ log.todayDone || '—' }}</div>
+              </div>
+            </div>
+
+            <div class="log-section tomorrow-plan">
+              <div class="section-icon">🗓</div>
+              <div class="section-content">
+                <div class="section-label">明日计划</div>
+                <div class="section-text">{{ log.tomorrowPlan || '—' }}</div>
+              </div>
+            </div>
+
+            <div v-if="log.blockedReason" class="log-section risk-section">
+              <div class="section-icon">⚠️</div>
+              <div class="section-content">
+                <div class="section-label">阻碍风险</div>
+                <div class="section-text risk-text">{{ log.blockedReason }}</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -96,7 +157,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useProjectStore, useTaskStore, useWorkLogStore } from '@/stores'
 import type { WorkLog } from '@/types'
 import { workLogApi } from '@/api'
@@ -108,6 +169,7 @@ const taskStore = useTaskStore()
 const workLogStore = useWorkLogStore()
 
 const logDate = ref(dayjs().format('YYYY-MM-DD'))
+const filterDate = ref<string | null>(dayjs().format('YYYY-MM-DD'))
 const saving = ref(false)
 const loading = ref(false)
 const logs = ref<WorkLog[]>([])
@@ -120,15 +182,14 @@ const logForm = ref({
 })
 
 function getTaskTitle(taskId: string) {
-  return taskStore.tasks.find(t => t.id === taskId)?.title || ''
+  return taskStore.tasks.find(t => String(t.id) === String(taskId))?.title || ''
 }
 
 async function fetchLogs() {
-  // 支持全部项目时也获取日志（不限制 projectId）
   loading.value = true
   try {
-    const res = await workLogApi.list({ date: logDate.value })
-    // 兼容两种响应结构：1) {code:0, data: [...]}  2) [...]
+    const dateParam = filterDate.value || undefined
+    const res = await workLogApi.list({ date: dateParam })
     const raw = res.data
     logs.value = (raw as any)?.data ?? (Array.isArray(raw) ? raw : [])
   } catch {
@@ -152,7 +213,7 @@ async function handleSaveLog() {
       logDate: logDate.value,
       todayDone: logForm.value.todayProgress,
       tomorrowPlan: logForm.value.tomorrowPlan,
-      blockers: logForm.value.blockers,
+      blockedReason: logForm.value.blockers || null,
     })
     ElMessage.success('日志保存成功')
     handleReset()
@@ -166,24 +227,33 @@ async function handleSaveLog() {
 
 function handleReset() {
   logForm.value = { taskId: '', todayProgress: '', tomorrowPlan: '', blockers: '' }
+  logDate.value = dayjs().format('YYYY-MM-DD')
 }
 
 function handleEdit(log: WorkLog) {
   logForm.value = {
-    taskId: log.taskId || '',
-    todayProgress: log.todayProgress,
-    tomorrowPlan: log.tomorrowPlan,
-    blockers: log.blockers || '',
+    taskId: String(log.taskId || ''),
+    todayProgress: log.todayDone || '',
+    tomorrowPlan: log.tomorrowPlan || '',
+    blockers: log.blockedReason || '',
   }
   logDate.value = log.date
 }
 
-watch([() => projectStore.currentProjectId, logDate], async ([pid]) => {
+onMounted(async () => {
+  const pid = projectStore.currentProjectId
   if (pid) {
     await taskStore.fetchTasks(pid)
     await fetchLogs()
   }
-}, { immediate: true })
+})
+
+watch(() => projectStore.currentProjectId, async (pid) => {
+  if (pid) {
+    await taskStore.fetchTasks(pid)
+    await fetchLogs()
+  }
+})
 </script>
 
 <style scoped>
@@ -191,87 +261,184 @@ watch([() => projectStore.currentProjectId, logDate], async ([pid]) => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--surface-2);
-  padding: 16px;
-  gap: 16px;
+  padding: 20px 24px;
+  gap: 20px;
   overflow-y: auto;
+  background: #f7f8fc;
 }
+
+/* 顶部标题栏 */
 .worklog-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: var(--surface-1);
-  padding: 12px 16px;
-  border-radius: var(--radius-md);
+  background: #fff;
+  padding: 16px 20px;
+  border-radius: 10px;
+  border: 1px solid #e5e6eb;
 }
-.project-name { font-weight: 600; font-size: 15px; }
-.log-form-card {
-  background: var(--surface-1);
-  border-radius: var(--radius-md);
-  padding: 20px;
-  box-shadow: var(--shadow-sm);
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
-.card-title {
+.header-icon { font-size: 24px; }
+.header-title {
   font-size: 15px;
   font-weight: 600;
-  color: var(--text);
+  color: #1f2329;
+}
+.header-subtitle {
+  font-size: 12px;
+  color: #86909c;
+  margin-top: 2px;
+}
+
+/* 填写卡片 */
+.log-form-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px 24px;
+  border: 1px solid #e5e6eb;
+}
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2329;
   margin-bottom: 16px;
 }
 .log-form {
-  max-width: 680px;
+  max-width: 720px;
 }
-.log-history { flex: 1; }
+.form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+/* 历史日志区 */
+.log-history {
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px 24px;
+  border: 1px solid #e5e6eb;
+  flex: 1;
+}
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
 .history-title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--text);
-  margin-bottom: 12px;
+  color: #1f2329;
+}
+.history-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.filter-label {
+  font-size: 12px;
+  color: #86909c;
 }
 .log-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
+
+/* 日志条目 */
 .log-item {
-  background: var(--surface-1);
-  border-radius: var(--radius-md);
-  padding: 16px;
-  box-shadow: var(--shadow-sm);
+  background: #fafafa;
+  border: 1px solid #f1f2f5;
+  border-radius: 8px;
+  padding: 14px 16px;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+.log-item:hover {
+  box-shadow: 0 2px 8px rgba(31,35,41,0.06);
+  border-color: #e4e7ec;
 }
 .log-item-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 .log-meta {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
-.log-date {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--accent);
+.log-date-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: #3370ff;
+  background: rgba(51,112,255,0.08);
+  padding: 2px 8px;
+  border-radius: 4px;
 }
 .log-task-tag {
-  background: var(--accent-light);
-  color: var(--accent);
-  border-radius: 4px;
-  padding: 2px 8px;
   font-size: 11px;
+  padding: 2px 8px;
+  background: rgba(100,181,246,0.12);
+  color: #3370ff;
+  border-radius: 4px;
+}
+
+/* 日志内容体 */
+.log-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 .log-section {
-  margin-bottom: 6px;
-  font-size: 13px;
-  line-height: 1.6;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #fff;
+  border: 1px solid transparent;
+}
+.log-section.today-progress {
+  border-color: rgba(51,112,255,0.12);
+}
+.log-section.tomorrow-plan {
+  border-color: rgba(0,185,76,0.12);
+}
+.log-section.risk-section {
+  border-color: rgba(245,63,63,0.12);
+  background: rgba(245,63,63,0.03);
+}
+.section-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.section-content {
+  flex: 1;
+  min-width: 0;
 }
 .section-label {
+  font-size: 11px;
   font-weight: 600;
-  color: var(--text);
+  color: #86909c;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 .section-text {
-  color: var(--text-secondary);
+  font-size: 13px;
+  color: #1f2329;
+  line-height: 1.5;
+  word-break: break-word;
 }
-.log-section.blockers .section-label { color: #ff4d4f; }
+.risk-text { color: #c0261c; }
 </style>

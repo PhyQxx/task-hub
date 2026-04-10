@@ -1,5 +1,5 @@
 import client from './client'
-import type { Project, Member } from '@/types'
+import type { Project, Member, Task } from '@/types'
 import type { ApiResponse } from '@/types'
 
 export const projectApi = {
@@ -53,6 +53,7 @@ export const memberApi = {
   byRole: (role: string) => client.get<ApiResponse<Member[]>>(`/members/role/${role}`),
   loadTrend: (memberId: string) => client.get<ApiResponse<any[]>>(`/members/${memberId}/load-trend`),
   roles: () => client.get<ApiResponse<string[]>>('/members/roles'),
+  memberTasks: (memberId: string) => client.get<ApiResponse<Task[]>>(`/members/${memberId}/tasks`),
 }
 
 export const workLogApi = {

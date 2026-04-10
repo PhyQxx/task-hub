@@ -1,7 +1,9 @@
 package com.taskhub.controller;
 
 import com.taskhub.entity.Member;
+import com.taskhub.entity.Task;
 import com.taskhub.service.MemberService;
+import com.taskhub.service.TaskService;
 import com.taskhub.vo.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -14,6 +16,7 @@ import java.util.List;
 public class MemberController {
 
     private final MemberService memberService;
+    private final TaskService taskService;
 
     @GetMapping
     public ApiResponse<List<Member>> list() {
@@ -39,5 +42,11 @@ public class MemberController {
             "admin",   // 管理员 - 全部权限
             "user"     // 用户 - 查看 + 基本操作
         ));
+    }
+
+    // 获取成员的任务列表
+    @GetMapping("/{memberId}/tasks")
+    public ApiResponse<List<Task>> memberTasks(@PathVariable String memberId) {
+        return ApiResponse.success(taskService.listByMemberId(memberId));
     }
 }
