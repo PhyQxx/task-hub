@@ -734,6 +734,11 @@ watch(() => projectStore.currentProjectId, () => {
   if (ganttInited) loadGanttData()
 })
 
+// 监听快捷筛选变化
+watch(() => ganttStore.taskFilter, () => {
+  if (ganttInited) loadGanttData()
+})
+
 onMounted(async () => {
   await projectStore.fetchProjects()
   await memberStore.fetchMembers()
