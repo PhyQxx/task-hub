@@ -20,6 +20,7 @@ public class GanttTaskVO {
     private Float taskDurationHours;
     private String status;
     private String priority;
+    private String description;
     private String assignee_id;
     private String assignee_name;
     private Integer is_milestone;

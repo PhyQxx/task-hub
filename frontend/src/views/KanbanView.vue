@@ -165,7 +165,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useProjectStore, useTaskStore, useMemberStore } from '@/stores'
 import type { Task } from '@/types'
 import { ElMessage } from 'element-plus'
@@ -356,9 +356,9 @@ async function ctxDelete() {
 
 document.addEventListener('click', hideCtx)
 
-watch(() => projectStore.currentProjectId, async (id) => {
-  await taskStore.fetchTasks(id || '')
-}, { immediate: true })
+onMounted(async () => {
+  // Tasks are fetched by App.vue on project load; just use the store data
+})
 </script>
 
 <style scoped>

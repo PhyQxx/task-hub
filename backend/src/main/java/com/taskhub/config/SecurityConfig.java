@@ -2,6 +2,7 @@ package com.taskhub.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -26,13 +27,36 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // 白名单：登录、注册、静态资源、WebSocket、API（临时开放测试）
+                // 白名单：登录、注册、Swagger、WebSocket
                 .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/api/**").permitAll()  // 临时开放所有API测试
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/ws/**").permitAll()
                 .requestMatchers("/error").permitAll()
-                // 其他接口需要认证
+
+                // ====== 管理员专属操作 ======
+                // 项目管理（创建、删除）
+                .requestMatchers(HttpMethod.POST, "/api/projects").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/projects/**").hasRole("ADMIN")
+                // 项目成员管理
+                .requestMatchers(HttpMethod.POST, "/api/projects/*/members").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/projects/*/members/**").hasRole("ADMIN")
+                // 任务删除
+                .requestMatchers(HttpMethod.DELETE, "/api/tasks/**").hasRole("ADMIN")
+                // 甘特图依赖关系管理
+                .requestMatchers(HttpMethod.POST, "/api/gantt/links").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/gantt/links").hasRole("ADMIN")
+                // 智能排程
+                .requestMatchers(HttpMethod.POST, "/api/tasks/reorder").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/tasks/batch-schedule").hasRole("ADMIN")
+                // 里程碑管理
+                .requestMatchers(HttpMethod.POST, "/api/milestones").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/milestones/**").hasRole("ADMIN")
+                // 成员角色管理
+                .requestMatchers(HttpMethod.PUT, "/api/members/**").hasRole("ADMIN")
+
+                // ====== 认证用户可用（读 + 普通写） ======
+                .requestMatchers("/api/**").authenticated()
+
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

@@ -88,7 +88,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useProjectStore, useTaskStore, useMemberStore } from '@/stores'
 import type { Task } from '@/types'
 import dayjs from 'dayjs'
@@ -162,10 +162,9 @@ function openTask(task: Task) {
   showDetail.value = true
 }
 
-watch(() => projectStore.currentProjectId, async (id) => {
-  await taskStore.fetchTasks(id || '')
-  await memberStore.fetchMembers()
-}, { immediate: true })
+onMounted(async () => {
+  // Tasks and members are fetched by App.vue on project load; just use the store data
+})
 </script>
 
 <style scoped>

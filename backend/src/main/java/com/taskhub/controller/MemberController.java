@@ -36,14 +36,8 @@ public class MemberController {
     @GetMapping("/roles")
     public ApiResponse<List<String>> getRoles() {
         return ApiResponse.success(List.of(
-            "项目经理",    // PM - 项目管理
-            "设计师",     // Designer - UI/UX 设计
-            "开发者",     // Developer - 后端开发
-            "前端开发",   // Frontend - 前端开发
-            "测试工程师",  // QA - 测试
-            "运维工程师",  // Ops - 运维
-            "产品经理",    // Product - 产品
-            "其他"        // Other
+            "admin",   // 管理员 - 全部权限
+            "user"     // 用户 - 查看 + 基本操作
         ));
     }
 }

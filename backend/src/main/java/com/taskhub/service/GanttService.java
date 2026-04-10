@@ -62,6 +62,7 @@ public class GanttService {
         vo.setProgress(task.getProgress() != null ? task.getProgress() / 100f : 0f);
         vo.setStatus(task.getStatus());
         vo.setPriority(task.getPriority());
+        vo.setDescription(task.getDescription());
         vo.setAssignee_id(task.getAssigneeId());
         vo.setIs_milestone(task.getIsMilestone());
         vo.setMilestone_date(task.getMilestoneDate());
@@ -113,6 +114,7 @@ public class GanttService {
 
     private Integer calculateDuration(java.time.LocalDate start, java.time.LocalDate end) {
         if (start == null || end == null) return 1;
-        return (int) java.time.temporal.ChronoUnit.DAYS.between(start, end) + 1;
+        // gantt duration_unit=day 时，duration = end - start（不含末尾），所以这里也不 +1
+        return (int) java.time.temporal.ChronoUnit.DAYS.between(start, end);
     }
 }

@@ -82,7 +82,7 @@ export const useGanttStore = defineStore('gantt', () => {
     try {
       const res = await ganttApi.getData(projectId)
       // 兼容两种响应结构
-      const d = (res.data as any)?.data ?? res.data ?? {}
+      const d = res.data ?? {}
       ganttData.value = {
         tasks: d.data || d.tasks || [],
         links: d.links || [],

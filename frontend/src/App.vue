@@ -25,7 +25,7 @@
       <div class="header-spacer"></div>
 
       <div class="header-actions">
-        <button class="btn btn-ghost" @click="showSmartSchedule = true">🧠 智能排程</button>
+        <button v-if="isAdmin" class="btn btn-ghost" @click="showSmartSchedule = true">🧠 智能排程</button>
         <button class="btn btn-primary" @click="showCreateTask = true">+ 新建任务</button>
         <el-dropdown trigger="click">
           <el-avatar :style="{ background: 'var(--primary)', fontSize: '12px', cursor: 'pointer' }" size="small">
@@ -69,7 +69,7 @@
             <span class="sidebar-dot dot-green"></span>
             {{ p.name }}
           </div>
-          <div class="sidebar-item" style="color: var(--primary)" @click="showCreateProject = true">
+          <div v-if="isAdmin" class="sidebar-item" style="color: var(--primary)" @click="showCreateProject = true">
             + 新建项目
           </div>
         </div>
@@ -81,11 +81,14 @@
         </div>
 
         <div class="sidebar-section">
-          <div class="sidebar-title">👤 角色权限</div>
+          <div class="sidebar-title">👤 当前角色</div>
           <div style="padding:8px 10px;font-size:11px;line-height:1.6;color:var(--text-muted)">
-            <div style="margin-bottom:6px"><span class="role-badge role-admin" style="font-size:9px">👑 管理员</span> 创建项目/任务</div>
-            <div style="margin-bottom:6px"><span class="role-badge role-member" style="font-size:9px">👤 成员</span> 查看/更新任务</div>
-            <div><span class="role-badge role-viewer" style="font-size:9px">👁️ 访客</span> 仅查看</div>
+            <div style="margin-bottom:6px">
+              <span class="role-badge" :class="isAdmin ? 'role-admin' : 'role-member'" style="font-size:9px">
+                {{ isAdmin ? '👑 管理员' : '👤 用户' }}
+              </span>
+              {{ isAdmin ? ' 全部操作权限' : ' 查看/更新任务' }}
+            </div>
           </div>
         </div>
       </aside>
@@ -102,26 +105,7 @@
     </div>
 
     <!-- Smart Schedule Modal -->
-    <div v-if="showSmartSchedule" class="modal-overlay" @click.self="showSmartSchedule = false">
-      <div class="modal">
-        <div class="modal-title">🧠 智能排程推荐</div>
-        <p style="font-size:12px;color:var(--text-faint);margin-bottom:12px">
-          基于成员负载、技能匹配度、上下文压力智能推荐最优执行人
-        </p>
-        <div class="log-entry" style="border-left-color:var(--primary)">
-          <div style="font-size:12px;color:var(--text-faint)">甘特图前端组件开发</div>
-          <div style="font-size:12px;margin-top:4px">
-            推荐：<strong style="color:var(--success)">Dev</strong>
-            <span style="color:var(--text-muted)">（负载 70%，技能匹配 95%）</span>
-          </div>
-          <div style="font-size:11px;color:var(--text-faint);margin-top:4px">得分：87.5 / 100</div>
-        </div>
-        <div class="modal-actions">
-          <button class="btn btn-ghost" @click="showSmartSchedule = false">关闭</button>
-          <button class="btn btn-primary" @click="showSmartSchedule = false">应用推荐</button>
-        </div>
-      </div>
-    </div>
+    <SmartScheduleModal :visible="showSmartSchedule" @close="showSmartSchedule = false" />
 
     <!-- New Task Modal -->
     <div v-if="showCreateTask" class="modal-overlay" @click.self="showCreateTask = false">
@@ -196,8 +180,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useProjectStore, useMemberStore, useAuthStore } from '@/stores'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useProjectStore, useMemberStore, useAuthStore, useTaskStore } from '@/stores'
 import { projectApi } from '@/api'
 import { ElMessage } from 'element-plus'
 import GanttView from '@/views/GanttView.vue'
@@ -207,10 +191,12 @@ import WorkLogView from '@/views/WorkLogView.vue'
 import MemberView from '@/views/MemberView.vue'
 import MilestoneView from '@/views/MilestoneView.vue'
 import LoginView from '@/views/LoginView.vue'
+import SmartScheduleModal from '@/components/SmartScheduleModal.vue'
 
 const projectStore = useProjectStore()
 const memberStore = useMemberStore()
 const authStore = useAuthStore()
+const taskStore = useTaskStore()
 
 const activeTab = ref('gantt')
 const activeFilter = ref('mine')
@@ -241,6 +227,7 @@ const currentProjectId = computed({
 })
 
 const userName = computed(() => authStore.nickname || '用户')
+const isAdmin = computed(() => authStore.role === 'admin')
 
 const taskForm = ref({
   title: '',
@@ -322,9 +309,58 @@ onMounted(async () => {
   if (!authStore.isLoggedIn) return
   await projectStore.fetchProjects()
   await memberStore.fetchMembers()
+  // Load tasks once for the initial active tab (gantt)
+  await taskStore.fetchTasks(projectStore.currentProjectId || '')
+})
+
+// Fetch tasks when switching tabs to avoid duplicate calls from hidden views
+watch(activeTab, async (tab) => {
+  if (!projectStore.currentProjectId) return
+  if (tab === 'kanban' || tab === 'swimlane') {
+    await taskStore.fetchTasks(projectStore.currentProjectId)
+  }
 })
 </script>
 
+<style>
+:root {
+  --bg: #0d0d0f;
+  --surface-1: #131316;
+  --surface-2: #1a1a1f;
+  --surface-3: #222228;
+  --surface-4: #2a2a32;
+  --surface-5: #32323c;
+  --surface-elevated: #38383f;
+  --border: #2e2e38;
+  --border-subtle: #222228;
+  --border-strong: #3a3a45;
+  --text: #ececf1;
+  --text-secondary: #a0a0b0;
+  --text-faint: #5c5c6d;
+  --text-muted: #6e6e80;
+  --primary: #5B8DEF;
+  --primary-hover: #4a7de0;
+  --primary-bg: rgba(91, 141, 239, 0.12);
+  --accent: #5B8DEF;
+  --accent-hover: #4a7de0;
+  --accent-bg: rgba(91, 141, 239, 0.12);
+  --success: #32d583;
+  --success-bg: rgba(50, 213, 131, 0.12);
+  --warning: #f5a623;
+  --warning-bg: rgba(245, 166, 35, 0.12);
+  --danger: #ec5f5f;
+  --danger-bg: rgba(236, 95, 95, 0.12);
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+</style>
 <style scoped>
 .app-layout {
   display: flex;
@@ -337,53 +373,55 @@ onMounted(async () => {
 
 /* ── Header ── */
 .header {
-  height: 48px;
+  height: 52px;
   background: var(--surface-2);
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   padding: 0 16px;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
   z-index: 100;
 }
 .header-logo {
   font-size: 14px;
-  font-weight: 590;
-  color: var(--text-secondary);
+  font-weight: 600;
+  color: var(--text);
   white-space: nowrap;
   letter-spacing: -0.24px;
 }
 .version-badge {
   font-size: 10px;
-  font-weight: 400;
+  font-weight: 500;
   color: var(--text-faint);
+  background: var(--surface-3);
+  padding: 1px 5px;
+  border-radius: 4px;
   margin-left: 4px;
 }
 .header-tabs {
   display: flex;
   gap: 2px;
-  margin-left: 16px;
+  margin-left: 20px;
   overflow-x: auto;
 }
 .header-tab {
-  padding: 5px 12px;
+  padding: 6px 14px;
   border-radius: var(--radius-sm);
   font-size: 13px;
-  font-weight: 510;
+  font-weight: 500;
   color: var(--text-faint);
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.12s;
   border: 1px solid transparent;
-  letter-spacing: -0.13px;
   background: transparent;
   font-family: inherit;
 }
-.header-tab:hover { color: var(--text-secondary); background: var(--border-subtle); }
+.header-tab:hover { color: var(--text-secondary); background: var(--surface-3); }
 .header-tab.active {
-  color: var(--text-secondary);
-  background: var(--border-subtle);
+  color: var(--text);
+  background: var(--surface-3);
   border-color: var(--border-strong);
 }
 .header-spacer { flex: 1; }
@@ -399,41 +437,50 @@ onMounted(async () => {
 
 /* ── Sidebar ── */
 .sidebar {
-  width: 200px;
+  width: 220px;
   background: var(--surface-2);
   border-right: 1px solid var(--border);
-  padding: 8px;
+  padding: 0;
   flex-shrink: 0;
   overflow-y: auto;
 }
-.sidebar-section { margin-bottom: 8px; }
+.sidebar-section {
+  padding: 16px 12px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.sidebar-section:last-child { border-bottom: none; }
 .sidebar-title {
   font-size: 11px;
-  font-weight: 590;
-  letter-spacing: 0.36px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
   color: var(--text-faint);
   text-transform: uppercase;
-  padding: 8px 8px 4px;
+  padding: 0 8px 8px;
 }
 .sidebar-item {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 6px 8px;
+  gap: 8px;
+  padding: 7px 10px;
   border-radius: var(--radius-sm);
   font-size: 13px;
   font-weight: 400;
-  color: var(--text-faint);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.12s;
 }
-.sidebar-item:hover { background: var(--border-subtle); color: var(--text-secondary); }
+.sidebar-item:hover { background: var(--surface-3); color: var(--text); }
 .sidebar-item.active { background: var(--primary-bg); color: var(--primary); }
-.sidebar-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.sidebar-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .dot-green { background: var(--success); }
 .dot-yellow { background: var(--warning); }
 .dot-red { background: var(--danger); }
 .dot-gray { background: var(--text-faint); }
+.project-status {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-faint);
+}
 
 /* ── Main Content ── */
 .main {

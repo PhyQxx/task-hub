@@ -9,11 +9,15 @@ const client: AxiosInstance = axios.create({
   headers: { 'Content-Type': 'application/json' }
 })
 
-// 请求拦截器：附加 JWT token
+// 请求拦截器：附加 JWT token 和用户ID
 client.interceptors.request.use(config => {
   const token = localStorage.getItem('token')
   if (token) {
     config.headers.set('Authorization', `Bearer ${token}`)
+  }
+  const memberId = localStorage.getItem('memberId')
+  if (memberId) {
+    config.headers.set('X-User-Id', memberId)
   }
   return config
 })

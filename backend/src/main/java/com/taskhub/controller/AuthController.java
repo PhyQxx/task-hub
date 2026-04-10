@@ -80,7 +80,7 @@ public class AuthController {
         member.setPhone(phone);
         member.setPassword(passwordEncoder.encode(password));
         member.setNickname(nickname != null ? nickname : "用户" + phone.substring(phone.length() - 4));
-        member.setRole("PD"); // 默认角色
+        member.setRole("user"); // 默认角色
         member.setIsActive(1);
         member.setWeeklyCapacity(40f);
 

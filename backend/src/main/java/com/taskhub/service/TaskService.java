@@ -42,7 +42,12 @@ public class TaskService {
         task.setAssigneeId(dto.getAssigneeId());
         task.setStartDate(dto.getStartDate());
         task.setEndDate(dto.getEndDate());
-        task.setDuration(dto.getDuration());
+        // 根据日期自动计算 duration（与 gantt duration_unit=day 语义一致：不含末尾）
+        if (dto.getStartDate() != null && dto.getEndDate() != null) {
+            task.setDuration((int) java.time.temporal.ChronoUnit.DAYS.between(dto.getStartDate(), dto.getEndDate()));
+        } else {
+            task.setDuration(dto.getDuration());
+        }
         task.setEstimatedHours(dto.getEstimatedHours());
         task.setActualHours(0f);
         task.setProgress(0);
@@ -74,7 +79,14 @@ public class TaskService {
         if (dto.getAssigneeId() != null) task.setAssigneeId(dto.getAssigneeId());
         if (dto.getStartDate() != null) task.setStartDate(dto.getStartDate());
         if (dto.getEndDate() != null) task.setEndDate(dto.getEndDate());
-        if (dto.getDuration() != null) task.setDuration(dto.getDuration());
+        // startDate 或 endDate 变化时，自动重新计算 duration（只在新旧两个日期都有值时才计算）
+        if ((dto.getStartDate() != null || dto.getEndDate() != null)
+                && task.getStartDate() != null && task.getEndDate() != null) {
+            // gantt duration_unit=day：duration = end - start（不含末尾），与 calculateDuration 保持一致
+            task.setDuration((int) java.time.temporal.ChronoUnit.DAYS.between(task.getStartDate(), task.getEndDate()));
+        } else if (dto.getDuration() != null) {
+            task.setDuration(dto.getDuration());
+        }
         if (dto.getEstimatedHours() != null) task.setEstimatedHours(dto.getEstimatedHours());
         if (dto.getProgress() != null) task.setProgress(dto.getProgress());
         if (dto.getStatus() != null) {
