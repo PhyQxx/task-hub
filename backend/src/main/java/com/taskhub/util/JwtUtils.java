@@ -16,9 +16,6 @@ public class JwtUtils {
     @Value("${task-hub.jwt.secret:TaskHubSecretKey2026PhyQxxTeamTaskTracker}")
     private String secret;
 
-    @Value("${task-hub.jwt.expiration:86400000}")
-    private long expiration; // 24小时
-
     private SecretKey getSigningKey() {
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
         if (keyBytes.length < 32) {
@@ -37,7 +34,6 @@ public class JwtUtils {
                         "role", role != null ? role : "member"
                 ))
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSigningKey())
                 .compact();
     }

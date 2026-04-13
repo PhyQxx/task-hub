@@ -35,7 +35,6 @@ mybatis-plus:
 task-hub:
   jwt:
     secret: TaskHubSecretKey2026PhyQxxTeamTaskTracker
-    expiration: 86400000
   id:
     prefix: TT
     date-format: yyyyMMdd

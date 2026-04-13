@@ -1,5 +1,6 @@
 package com.taskhub.config;
 
+import com.taskhub.mapper.MemberMapper;
 import com.taskhub.util.JwtUtils;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -19,9 +20,11 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtils jwtUtils;
+    private final MemberMapper memberMapper;
 
-    public JwtAuthenticationFilter(JwtUtils jwtUtils) {
+    public JwtAuthenticationFilter(JwtUtils jwtUtils, MemberMapper memberMapper) {
         this.jwtUtils = jwtUtils;
+        this.memberMapper = memberMapper;
     }
 
     @Override
@@ -32,6 +35,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (StringUtils.hasText(token) && jwtUtils.validateToken(token)) {
             String memberId = jwtUtils.getMemberIdFromToken(token);
+
+            // 校验用户是否仍存在
+            if (memberMapper.findByMemberId(memberId) == null) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
             String role = jwtUtils.getRoleFromToken(token);
             String nickname = jwtUtils.getNicknameFromToken(token);
 
