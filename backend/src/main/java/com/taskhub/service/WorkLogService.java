@@ -1,9 +1,13 @@
 package com.taskhub.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.taskhub.dto.WorkLogCreateDTO;
+import com.taskhub.entity.Task;
 import com.taskhub.entity.TaskWorkLog;
+import com.taskhub.mapper.TaskMapper;
 import com.taskhub.mapper.TaskWorkLogMapper;
 import com.taskhub.util.TaskIdGenerator;
+import com.taskhub.ws.GanttWebSocketHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -17,7 +21,9 @@ import java.util.List;
 public class WorkLogService {
 
     private final TaskWorkLogMapper workLogMapper;
+    private final TaskMapper taskMapper;
     private final TaskIdGenerator taskIdGenerator;
+    private final GanttWebSocketHandler wsHandler;
 
     public TaskWorkLog create(WorkLogCreateDTO dto) {
         // Bug-001: userId 非空校验
@@ -44,7 +50,25 @@ public class WorkLogService {
         log.setCreatedAt(LocalDateTime.now());
         log.setUpdatedAt(LocalDateTime.now());
         workLogMapper.insert(log);
+        // 广播工作日志创建事件
+        if (dto.getTaskId() != null) {
+            wsHandler.broadcastTaskUpdate(
+                getProjectIdByTaskId(dto.getTaskId()),
+                dto.getTaskId(),
+                java.util.Map.of("workLogUpdated", true),
+                dto.getUserId()
+            );
+        }
         return log;
+    }
+
+    private String getProjectIdByTaskId(String taskId) {
+        Task task = taskMapper.selectOne(
+            new QueryWrapper<Task>()
+                .eq("task_id", taskId)
+                .select("project_id")
+        );
+        return task != null ? task.getProjectId() : "";
     }
 
     public List<TaskWorkLog> getByTaskId(String taskId) {

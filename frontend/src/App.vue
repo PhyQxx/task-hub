@@ -16,7 +16,7 @@
           :key="tab.key"
           class="header-tab"
           :class="{ active: activeTab === tab.key }"
-          @click="activeTab = tab.key"
+          @click="$router.push('/' + tab.key)"
         >
           {{ tab.icon }} {{ tab.label }}
         </button>
@@ -25,6 +25,7 @@
       <div class="header-spacer"></div>
 
       <div class="header-actions">
+        <NotificationBell />
         <el-dropdown trigger="click">
           <el-avatar :style="{ background: 'var(--primary)', fontSize: '12px', cursor: 'pointer' }" size="small">
             {{ userName.slice(0, 1) }}
@@ -84,17 +85,18 @@
               </span>
               {{ isAdmin ? ' 全部操作权限' : ' 查看/更新任务' }}
             </div>
+            <div v-if="currentProjectId && authStore.projectRole">
+              <span class="role-badge" :class="'role-' + authStore.projectRole" style="font-size:9px">
+                {{ projectRoleLabel }}
+              </span>
+            </div>
           </div>
         </div>
       </aside>
 
       <!-- Main Content -->
       <main class="main">
-        <GanttView  v-show="activeTab === 'gantt'" />
-        <KanbanView v-show="activeTab === 'kanban'" />
-        <SwimLaneView v-show="activeTab === 'swimlane'" />
-        <MemberView v-show="activeTab === 'member'" />
-        <WorkLogView v-show="activeTab === 'worklog'" />
+        <router-view />
       </main>
     </div>
 
@@ -177,25 +179,29 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useProjectStore, useMemberStore, useAuthStore, useTaskStore, useGanttStore } from '@/stores'
-import { projectApi } from '@/api'
+import { projectApi, permissionApi } from '@/api'
 import { ElMessage } from 'element-plus'
-import GanttView from '@/views/GanttView.vue'
-import KanbanView from '@/views/KanbanView.vue'
-import SwimLaneView from '@/views/SwimLaneView.vue'
-import WorkLogView from '@/views/WorkLogView.vue'
-import MemberView from '@/views/MemberView.vue'
+import { useWebSocket } from '@/composables/useWebSocket'
 import LoginView from '@/views/LoginView.vue'
 import SmartScheduleModal from '@/components/SmartScheduleModal.vue'
+import NotificationBell from '@/components/NotificationBell.vue'
 
+const router = useRouter()
+const route = useRoute()
 const projectStore = useProjectStore()
 const memberStore = useMemberStore()
 const authStore = useAuthStore()
 const taskStore = useTaskStore()
 const ganttStore = useGanttStore()
+const { connect: wsConnect, disconnect: wsDisconnect } = useWebSocket()
 
-const activeTab = ref('gantt')
+const activeTab = computed(() => {
+  const name = route.name as string
+  return name || 'gantt'
+})
 const activeFilter = ref('')
 const showSmartSchedule = ref(false)
 const showCreateTask = ref(false)
@@ -208,6 +214,7 @@ const tabs = [
   { key: 'kanban', label: '看板', icon: '📋' },
   { key: 'swimlane', label: '泳道', icon: '🌊' },
   { key: 'member', label: '成员', icon: '👥' },
+  { key: 'milestone', label: '里程碑', icon: '🏁' },
   { key: 'worklog', label: '日志', icon: '📝' },
 ]
 
@@ -225,6 +232,13 @@ const currentProjectId = computed({
 
 const userName = computed(() => authStore.nickname || '用户')
 const isAdmin = computed(() => authStore.role === 'admin')
+const projectRoleLabel = computed(() => {
+  const r = authStore.projectRole
+  if (r === 'owner') return '👑 项目负责人'
+  if (r === 'member') return '✏️ 成员'
+  if (r === 'viewer') return '👀 观察者'
+  return ''
+})
 
 const taskForm = ref({
   title: '',
@@ -248,13 +262,30 @@ function setFilter(key: string) {
   }
 }
 
+async function fetchProjectRole(projectId: string) {
+  if (!projectId) {
+    authStore.setProjectRole('')
+    return
+  }
+  try {
+    const res = await permissionApi.getMyRole(projectId)
+    if (res.code === 0) {
+      authStore.setProjectRole(res.data || '')
+    }
+  } catch {
+    authStore.setProjectRole('')
+  }
+}
+
 function selectProject(id: string) {
   projectStore.selectProject(id)
   currentProjectId.value = id
+  fetchProjectRole(id)
 }
 
 function onProjectChange() {
   projectStore.selectProject(currentProjectId.value)
+  fetchProjectRole(currentProjectId.value)
 }
 
 function openCreateProject() {
@@ -327,7 +358,9 @@ async function handleCreateTask() {
     showCreateTask.value = false
     taskForm.value = { title: '', assigneeId: '', priority: 'MEDIUM', startDate: '', days: 5, endDate: '', description: '' }
     // Refresh gantt/kanban
-    activeTab.value = activeTab.value // trigger reload
+    if (projectStore.currentProjectId) {
+      await taskStore.fetchTasks(projectStore.currentProjectId)
+    }
   } catch (e) {
     ElMessage.error('创建失败')
   }
@@ -361,14 +394,21 @@ onMounted(async () => {
   if (!authStore.isLoggedIn) return
   await projectStore.fetchProjects()
   await memberStore.fetchMembers()
-  // Load tasks once for the initial active tab (gantt)
   await taskStore.fetchTasks(projectStore.currentProjectId || '')
+  if (projectStore.currentProjectId) {
+    fetchProjectRole(projectStore.currentProjectId)
+  }
+  wsConnect()
+})
+
+onBeforeUnmount(() => {
+  wsDisconnect()
 })
 
 // Fetch tasks when switching tabs to avoid duplicate calls from hidden views
-watch(activeTab, async (tab) => {
+watch(() => route.name, async (name) => {
   if (!projectStore.currentProjectId) return
-  if (tab === 'kanban' || tab === 'swimlane') {
+  if (name === 'kanban' || name === 'swimlane') {
     await taskStore.fetchTasks(projectStore.currentProjectId)
   }
 })
@@ -560,6 +600,8 @@ watch(activeTab, async (tab) => {
 }
 .role-admin { background: rgba(167,139,250,0.15); color: #7c5af5; }
 .role-member { background: var(--primary-bg); color: var(--primary); }
+.role-owner { background: rgba(251,191,36,0.15); color: #d97706; }
+.role-viewer { background: rgba(148,163,184,0.15); color: #64748b; }
 .role-viewer { background: var(--surface-4); color: var(--text-muted); }
 
 /* Modal fields */

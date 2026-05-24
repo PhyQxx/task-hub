@@ -7,7 +7,7 @@ import { projectApi, taskApi, ganttApi, memberApi, workLogApi } from '@/api'
 export const useProjectStore = defineStore('project', () => {
   const projects = ref<Project[]>([])
   const currentProjectId = ref<string>('')
-  const currentProject = computed(() => projects.value.find(p => p.projectId === currentProjectId.value))
+  const currentProject = computed(() => projects.value.find((p) => p.projectId === currentProjectId.value))
 
   async function fetchProjects() {
     const res = await projectApi.list()
@@ -26,7 +26,7 @@ export const useProjectStore = defineStore('project', () => {
 
   async function deleteProject(id: string) {
     await projectApi.delete(id)
-    projects.value = projects.value.filter(p => p.projectId !== id)
+    projects.value = projects.value.filter((p) => p.projectId !== id)
     if (currentProjectId.value === id) {
       currentProjectId.value = projects.value[0]?.projectId || ''
     }
@@ -34,14 +34,14 @@ export const useProjectStore = defineStore('project', () => {
 
   async function updateProject(id: string, data: Partial<Project>) {
     const res = await projectApi.update(id, data)
-    const updated = res.data
+    const updated = res.data as any
     if (updated) {
       // 保证新对象有 projectId 字段
       const normalized: Project = {
         ...updated,
         projectId: updated.project_id || updated.projectId || updated.id,
       } as Project
-      const idx = projects.value.findIndex(p => p.projectId === id)
+      const idx = projects.value.findIndex((p) => p.projectId === id)
       if (idx !== -1) projects.value[idx] = normalized
     }
   }
@@ -77,24 +77,32 @@ export const useTaskStore = defineStore('task', () => {
 
   async function updateTask(taskId: string, data: Partial<Task>) {
     const res = await taskApi.update(taskId, data)
-    const idx = tasks.value.findIndex(t => t.id === taskId)
+    const idx = tasks.value.findIndex((t) => t.id === taskId)
     if (idx !== -1) tasks.value[idx] = res.data
     return res.data
   }
 
   async function deleteTask(taskId: string) {
     await taskApi.delete(taskId)
-    tasks.value = tasks.value.filter(t => t.id !== taskId)
+    tasks.value = tasks.value.filter((t) => t.id !== taskId)
   }
 
-  const todoTasks = computed(() => tasks.value.filter(t => t.status === 'TODO'))
-  const inProgressTasks = computed(() => tasks.value.filter(t => t.status === 'IN_PROGRESS'))
-  const blockedTasks = computed(() => tasks.value.filter(t => t.status === 'BLOCKED'))
-  const doneTasks = computed(() => tasks.value.filter(t => t.status === 'DONE'))
+  const todoTasks = computed(() => tasks.value.filter((t) => t.status === 'TODO'))
+  const inProgressTasks = computed(() => tasks.value.filter((t) => t.status === 'IN_PROGRESS'))
+  const blockedTasks = computed(() => tasks.value.filter((t) => t.status === 'BLOCKED'))
+  const doneTasks = computed(() => tasks.value.filter((t) => t.status === 'DONE'))
 
   return {
-    tasks, loading, todoTasks, inProgressTasks, blockedTasks, doneTasks,
-    fetchTasks, createTask, updateTask, deleteTask
+    tasks,
+    loading,
+    todoTasks,
+    inProgressTasks,
+    blockedTasks,
+    doneTasks,
+    fetchTasks,
+    createTask,
+    updateTask,
+    deleteTask,
   }
 })
 
@@ -125,7 +133,9 @@ export const useGanttStore = defineStore('gantt', () => {
     }
   }
 
-  function setTaskFilter(f: string) { taskFilter.value = f }
+  function setTaskFilter(f: string) {
+    taskFilter.value = f
+  }
 
   return { ganttData, loading, taskFilter, fetchGanttData, setTaskFilter }
 })
@@ -154,7 +164,7 @@ export const useWorkLogStore = defineStore('worklog', () => {
   async function fetchLogs(taskId: string) {
     loading.value = true
     try {
-      const res = await workLogApi.list(taskId)
+      const res = taskId ? await workLogApi.listByTask(taskId) : await workLogApi.list()
       logs.value = res.data || []
     } finally {
       loading.value = false
@@ -169,10 +179,43 @@ export const useWorkLogStore = defineStore('worklog', () => {
 
   async function updateLog(id: string, data: Partial<WorkLog>) {
     const res = await workLogApi.update(id, data)
-    const idx = logs.value.findIndex(l => l.id === id)
+    const idx = logs.value.findIndex((l) => l.id === id)
     if (idx !== -1) logs.value[idx] = res.data
     return res.data
   }
 
   return { logs, loading, fetchLogs, createLog, updateLog }
+})
+
+// 通知 store
+export const useNotificationStore = defineStore('notification', () => {
+  const notifications = ref<
+    Array<{ id: string; type: string; title: string; message: string; time: string; read: boolean; projectId?: string }>
+  >([])
+  const unreadCount = computed(() => notifications.value.filter((n) => !n.read).length)
+
+  function addNotification(data: { type: string; title: string; message: string; projectId?: string }) {
+    notifications.value.unshift({
+      id: String(Date.now()),
+      ...data,
+      time: new Date().toLocaleString('zh-CN'),
+      read: false,
+    })
+    if (notifications.value.length > 50) notifications.value = notifications.value.slice(0, 50)
+  }
+
+  function markAsRead(id: string) {
+    const n = notifications.value.find((n) => n.id === id)
+    if (n) n.read = true
+  }
+
+  function markAllAsRead() {
+    notifications.value.forEach((n) => (n.read = true))
+  }
+
+  function clearAll() {
+    notifications.value = []
+  }
+
+  return { notifications, unreadCount, addNotification, markAsRead, markAllAsRead, clearAll }
 })

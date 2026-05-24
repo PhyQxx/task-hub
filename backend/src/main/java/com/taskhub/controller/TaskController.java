@@ -6,10 +6,13 @@ import com.taskhub.dto.DependencyDTO;
 import com.taskhub.entity.Task;
 import com.taskhub.entity.TaskDependency;
 import com.taskhub.entity.TaskHistory;
+import com.taskhub.service.ProjectPermissionService;
 import com.taskhub.service.TaskService;
 import com.taskhub.vo.ApiResponse;
 import com.taskhub.vo.TaskHistoryVO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,10 +23,20 @@ import java.util.List;
 public class TaskController {
 
     private final TaskService taskService;
+    private final ProjectPermissionService permissionService;
+
+    private boolean isGlobalAdmin() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null && auth.getAuthorities().stream()
+            .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+    }
 
     @PostMapping
     public ApiResponse<Task> create(@RequestBody TaskCreateDTO dto,
                                     @RequestHeader(value = "X-User-Id", defaultValue = "system") String userId) {
+        if (!permissionService.canEdit(dto.getProjectId(), userId, isGlobalAdmin())) {
+            return ApiResponse.error(403, "无权在该项目中创建任务");
+        }
         return ApiResponse.success(taskService.create(dto, userId));
     }
 
@@ -38,12 +51,20 @@ public class TaskController {
     public ApiResponse<?> update(@PathVariable String taskId,
                                      @RequestBody TaskUpdateDTO dto,
                                      @RequestHeader(value = "X-User-Id", defaultValue = "system") String userId) {
+        Task task = taskService.getById(taskId);
+        if (task != null && !permissionService.canEdit(task.getProjectId(), userId, isGlobalAdmin())) {
+            return ApiResponse.error(403, "无权编辑该任务");
+        }
         return ApiResponse.success(taskService.update(taskId, dto, userId));
     }
 
     @DeleteMapping("/{taskId}")
     public ApiResponse<Void> delete(@PathVariable String taskId,
                                     @RequestHeader(value = "X-User-Id", defaultValue = "system") String userId) {
+        Task task = taskService.getById(taskId);
+        if (task != null && !permissionService.isOwnerOrAdmin(task.getProjectId(), userId, isGlobalAdmin())) {
+            return ApiResponse.error(403, "无权删除该任务");
+        }
         taskService.delete(taskId, userId);
         return ApiResponse.success(null);
     }

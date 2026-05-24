@@ -8,6 +8,27 @@
       <div class="stat-card"><div class="stat-label">已阻塞</div><div class="stat-value" style="color:var(--danger)">{{ countByStatus('BLOCKED') }}</div></div>
     </div>
 
+    <!-- 高级筛选栏 -->
+    <div class="filter-bar">
+      <el-input v-model="filterKeyword" placeholder="搜索任务名称" clearable size="small" style="width:180px" />
+      <el-select v-model="filterStatus" placeholder="状态" clearable size="small" style="width:120px">
+        <el-option label="待处理" value="TODO" />
+        <el-option label="进行中" value="IN_PROGRESS" />
+        <el-option label="已完成" value="DONE" />
+        <el-option label="已阻塞" value="BLOCKED" />
+      </el-select>
+      <el-select v-model="filterPriority" placeholder="优先级" clearable size="small" style="width:120px">
+        <el-option label="低" value="LOW" />
+        <el-option label="中" value="MEDIUM" />
+        <el-option label="高" value="HIGH" />
+        <el-option label="紧急" value="URGENT" />
+      </el-select>
+      <el-select v-model="filterAssignee" placeholder="负责人" clearable size="small" style="width:140px">
+        <el-option v-for="m in memberStore.members" :key="m.memberId" :label="m.nickname" :value="m.memberId" />
+      </el-select>
+      <el-button v-if="filterKeyword || filterStatus || filterPriority || filterAssignee" size="small" @click="clearFilters">清除筛选</el-button>
+    </div>
+
     <!-- Toolbar -->
     <div class="toolbar">
       <button class="btn btn-ghost">今天</button>
@@ -34,7 +55,7 @@
             v-for="task in getTasks(col.key)"
             :key="task.id"
             class="kanban-card"
-            :class="{ 'blocked-card': col.key === 'BLOCKED', 'selected-card': selectedTasks.has(task.taskId || task.id), 'dragging-card': dragTaskId === (task.taskId || task.id) }"
+            :class="{ 'blocked-card': col.key === 'BLOCKED', 'selected-card': selectedTasks.has(String(task.taskId || task.id)), 'dragging-card': dragTaskId === String(task.taskId || task.id) }"
             draggable="true"
             @click="openTask(task)"
             @contextmenu.prevent="showCtxMenu($event, task)"
@@ -45,7 +66,7 @@
               <input
                 type="checkbox"
                 class="card-checkbox"
-                :checked="selectedTasks.has(task.taskId || task.id)"
+                :checked="selectedTasks.has(String(task.taskId || task.id))"
                 @change="toggleSelect(task)"
               />
             </div>
@@ -185,15 +206,45 @@ const memberStore = useMemberStore()
 const ganttStore = useGanttStore()
 const authStore = useAuthStore()
 
-// 快捷筛选
+// 高级筛选
+const filterKeyword = ref('')
+const filterStatus = ref('')
+const filterPriority = ref('')
+const filterAssignee = ref('')
+
+function clearFilters() {
+  filterKeyword.value = ''
+  filterStatus.value = ''
+  filterPriority.value = ''
+  filterAssignee.value = ''
+}
+
+// 快捷筛选 + 高级筛选
 const filteredTasks = computed(() => {
   const f = ganttStore.taskFilter
   let tasks = taskStore.tasks
-  if (!f) return tasks
-  const todayStr = dayjs().format('YYYY-MM-DD')
-  if (f === 'mine' || f === 'owner') tasks = tasks.filter((t: any) => t.assigneeId === authStore.memberId || t.assignee_id === authStore.memberId)
-  else if (f === 'today') tasks = tasks.filter((t: any) => t.endDate === todayStr || t.end_date === todayStr)
-  else if (f === 'blocked') tasks = tasks.filter((t: any) => t.status === 'BLOCKED')
+  if (!f) {
+    // 即使没有快捷筛选，也要应用高级筛选
+  } else {
+    const todayStr = dayjs().format('YYYY-MM-DD')
+    if (f === 'mine' || f === 'owner') tasks = tasks.filter((t: any) => t.assigneeId === authStore.memberId || t.assignee_id === authStore.memberId)
+    else if (f === 'today') tasks = tasks.filter((t: any) => t.endDate === todayStr || t.end_date === todayStr)
+    else if (f === 'blocked') tasks = tasks.filter((t: any) => t.status === 'BLOCKED')
+  }
+  // 高级筛选
+  if (filterKeyword.value) {
+    const kw = filterKeyword.value.toLowerCase()
+    tasks = tasks.filter((t: any) => (t.title || '').toLowerCase().includes(kw))
+  }
+  if (filterStatus.value) {
+    tasks = tasks.filter((t: any) => t.status === filterStatus.value)
+  }
+  if (filterPriority.value) {
+    tasks = tasks.filter((t: any) => t.priority === filterPriority.value)
+  }
+  if (filterAssignee.value) {
+    tasks = tasks.filter((t: any) => (t.assigneeId || t.assignee_id) === filterAssignee.value)
+  }
   return tasks
 })
 
@@ -280,7 +331,7 @@ async function handleBatchStatus() {
     ElMessage.success(`已更新 ${selectedTasks.value.size} 个任务的状态`)
     selectedTasks.value.clear()
     showBatchStatus.value = false
-    await taskStore.fetchTasks()
+    await taskStore.fetchTasks(projectStore.currentProjectId)
   } catch (e: any) {
     ElMessage.error(e.message || '批量更新失败')
   } finally {
@@ -297,7 +348,7 @@ async function handleBatchDelete() {
     }
     ElMessage.success(`已删除 ${selectedTasks.value.size} 个任务`)
     selectedTasks.value.clear()
-    await taskStore.fetchTasks()
+    await taskStore.fetchTasks(projectStore.currentProjectId)
   } catch (e: any) {
     ElMessage.error(e.message || '批量删除失败')
   }
@@ -315,7 +366,7 @@ async function handleBatchAssign() {
     selectedTasks.value.clear()
     showBatchAssign.value = false
     batchAssigneeId.value = ''
-    await taskStore.fetchTasks()
+    await taskStore.fetchTasks(projectStore.currentProjectId)
   } catch (e: any) {
     ElMessage.error(e.message || '批量指派失败')
   } finally {
@@ -343,9 +394,9 @@ async function handleSave() {
   if (!projectId) { ElMessage.warning('请先选择项目'); return }
   try {
     if (editingTask.value) {
-      await taskStore.updateTask(editingTask.value.taskId || editingTask.value.id, { projectId, ...form.value })
+      await taskStore.updateTask(String(editingTask.value.taskId || editingTask.value.id), { projectId, ...form.value } as any)
     } else {
-      await taskStore.createTask({ projectId, ...form.value })
+      await taskStore.createTask({ projectId, ...form.value } as any)
     }
     showEdit.value = false
     await taskStore.fetchTasks(projectId)
@@ -357,7 +408,7 @@ async function handleSave() {
 async function handleDelete() {
   if (!editingTask.value) return
   try {
-    await taskStore.deleteTask(editingTask.value.taskId || editingTask.value.id)
+    await taskStore.deleteTask(String(editingTask.value.taskId || editingTask.value.id))
     showEdit.value = false
     await taskStore.fetchTasks(projectStore.currentProjectId)
   } catch(e) {
@@ -382,7 +433,7 @@ function hideCtx() { ctxVisible.value = false }
 
 async function ctxChangeStatus(status: string) {
   if (!ctxTask.value) return
-  await taskStore.updateTask(ctxTask.value.taskId || ctxTask.value.id, { status } as any)
+  await taskStore.updateTask(String(ctxTask.value.taskId || ctxTask.value.id), { status } as any)
   hideCtx()
   await taskStore.fetchTasks(projectStore.currentProjectId)
 }
@@ -395,7 +446,7 @@ function ctxEdit() {
 
 async function ctxDelete() {
   if (!ctxTask.value) return
-  await taskStore.deleteTask(ctxTask.value.taskId || ctxTask.value.id)
+  await taskStore.deleteTask(String(ctxTask.value.taskId || ctxTask.value.id))
   hideCtx()
   await taskStore.fetchTasks(projectStore.currentProjectId)
 }
@@ -436,6 +487,16 @@ onMounted(async () => {
   font-weight: 400;
   color: var(--text-faint);
   margin-left: auto;
+}
+
+/* 筛选栏 */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border-light);
 }
 
 /* Board */

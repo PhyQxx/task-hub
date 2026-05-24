@@ -4,9 +4,12 @@ import com.taskhub.dto.ProjectCreateDTO;
 import com.taskhub.dto.ProjectUpdateDTO;
 import com.taskhub.entity.Project;
 import com.taskhub.entity.ProjectMember;
+import com.taskhub.service.ProjectPermissionService;
 import com.taskhub.service.ProjectService;
 import com.taskhub.vo.ApiResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,6 +20,13 @@ import java.util.List;
 public class ProjectController {
 
     private final ProjectService projectService;
+    private final ProjectPermissionService permissionService;
+
+    private boolean isGlobalAdmin() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null && auth.getAuthorities().stream()
+            .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+    }
 
     @PostMapping
     public ApiResponse<Project> create(@RequestBody ProjectCreateDTO dto) {
@@ -39,12 +49,20 @@ public class ProjectController {
 
     @PutMapping("/{projectId}")
     public ApiResponse<Project> update(@PathVariable String projectId,
-                                        @RequestBody ProjectUpdateDTO dto) {
+                                        @RequestBody ProjectUpdateDTO dto,
+                                        @RequestHeader(value = "X-User-Id", defaultValue = "system") String userId) {
+        if (!permissionService.isOwnerOrAdmin(projectId, userId, isGlobalAdmin())) {
+            return ApiResponse.error(403, "无权修改该项目");
+        }
         return ApiResponse.success(projectService.update(projectId, dto));
     }
 
     @DeleteMapping("/{projectId}")
-    public ApiResponse<Void> delete(@PathVariable String projectId) {
+    public ApiResponse<Void> delete(@PathVariable String projectId,
+                                    @RequestHeader(value = "X-User-Id", defaultValue = "system") String userId) {
+        if (!permissionService.isOwnerOrAdmin(projectId, userId, isGlobalAdmin())) {
+            return ApiResponse.error(403, "无权删除该项目");
+        }
         projectService.delete(projectId);
         return ApiResponse.success(null);
     }
@@ -66,5 +84,12 @@ public class ProjectController {
     public ApiResponse<Void> removeMember(@PathVariable String projectId, @PathVariable String memberId) {
         projectService.removeMember(projectId, memberId);
         return ApiResponse.success(null);
+    }
+
+    @GetMapping("/{projectId}/my-role")
+    public ApiResponse<String> myRole(@PathVariable String projectId,
+                                       @RequestHeader(value = "X-User-Id", defaultValue = "system") String userId) {
+        String role = permissionService.getRole(projectId, userId);
+        return ApiResponse.success(role != null ? role : "none");
     }
 }

@@ -47,4 +47,12 @@ public class TaskIdGenerator {
         redisTemplate.expire(key, java.time.Duration.ofSeconds(86400));
         return "WL-" + dateStr + "-" + String.format("%03d", seq);
     }
+
+    public String nextCommentId() {
+        String dateStr = LocalDate.now().format(DATE_FORMAT);
+        String key = "CM:" + dateStr;
+        Long seq = redisTemplate.opsForValue().increment(key);
+        redisTemplate.expire(key, java.time.Duration.ofSeconds(86400));
+        return "CM-" + dateStr + "-" + String.format("%03d", seq);
+    }
 }

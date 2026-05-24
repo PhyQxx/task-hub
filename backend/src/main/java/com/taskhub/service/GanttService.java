@@ -58,6 +58,7 @@ public class GanttService {
         vo.setId(task.getTaskId());
         vo.setText(task.getTitle());
         vo.setStart_date(task.getStartDate());
+        vo.setEnd_date(task.getEndDate());
         vo.setDuration(calculateDuration(task.getStartDate(), task.getEndDate()));
         vo.setProgress(task.getProgress() != null ? task.getProgress() / 100f : 0f);
         vo.setStatus(task.getStatus());

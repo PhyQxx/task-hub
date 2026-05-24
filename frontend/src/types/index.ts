@@ -32,7 +32,7 @@ export interface Member {
 // 任务
 export interface Task {
   id: string | number
-  taskId?: string  // 业务ID，如 TT-20260410-001
+  taskId?: string // 业务ID，如 TT-20260410-001
   projectId: string
   title: string
   description?: string
@@ -74,10 +74,12 @@ export interface WorkLog {
   logId: string
   taskId?: string
   userId: string
-  date: string          // 对应 logDate，yyyy-MM-dd
-  todayDone: string     // 后端字段：今日完成
+  date: string // 对应 logDate，yyyy-MM-dd
+  todayDone: string // 后端字段：今日完成
   tomorrowPlan: string
   blockedReason?: string // 后端字段：阻碍原因
+  hoursSpent?: number // 后端字段：花费工时
+  currentStatus?: string // 后端字段：当前状态
   createdAt: string
   updatedAt: string
 }
@@ -94,6 +96,8 @@ export interface GanttTask {
   type?: string
   status?: string
   assigneeName?: string
+  description?: string
+  priority?: string
   open?: boolean
 }
 

@@ -92,6 +92,30 @@
       </el-form>
     </div>
 
+    <!-- 统计汇总 -->
+    <div class="log-stats-card">
+      <div class="stats-title">📊 统计汇总</div>
+      <div class="stats-grid">
+        <div class="stats-item">
+          <div class="stats-value">{{ logs.length }}</div>
+          <div class="stats-label">日志总数</div>
+        </div>
+        <div class="stats-item">
+          <div class="stats-value">{{ totalHours }}</div>
+          <div class="stats-label">总工时(h)</div>
+        </div>
+        <div class="stats-item">
+          <div class="stats-value">{{ riskCount }}</div>
+          <div class="stats-label">风险/阻塞</div>
+        </div>
+        <div class="stats-item">
+          <div class="stats-value">{{ uniqueTaskCount }}</div>
+          <div class="stats-label">涉及任务</div>
+        </div>
+      </div>
+      <el-button size="small" style="margin-top:12px" @click="exportCsv">📥 导出 CSV</el-button>
+    </div>
+
     <!-- 历史日志列表 -->
     <div class="log-history">
       <div class="history-header">
@@ -157,7 +181,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useProjectStore, useTaskStore, useWorkLogStore } from '@/stores'
 import type { WorkLog } from '@/types'
 import { workLogApi } from '@/api'
@@ -206,10 +230,10 @@ async function handleSaveLog() {
   }
   saving.value = true
   try {
-    const userName = localStorage.getItem('userName') || '匿名用户'
+    const userId = localStorage.getItem('memberId') || '匿名用户'
     await workLogApi.create({
       taskId: logForm.value.taskId || null,
-      userId: userName,
+      userId: userId,
       logDate: logDate.value,
       todayDone: logForm.value.todayProgress,
       tomorrowPlan: logForm.value.tomorrowPlan,
@@ -238,6 +262,34 @@ function handleEdit(log: WorkLog) {
     blockers: log.blockedReason || '',
   }
   logDate.value = log.date
+}
+
+// 统计
+const totalHours = computed(() => logs.value.reduce((sum, l) => sum + (l.hoursSpent || 0), 0).toFixed(1))
+const riskCount = computed(() => logs.value.filter(l => l.currentStatus === '有风险' || l.currentStatus === '已阻塞' || l.blockedReason).length)
+const uniqueTaskCount = computed(() => new Set(logs.value.filter(l => l.taskId).map(l => l.taskId)).size)
+
+// 导出 CSV
+function exportCsv() {
+  if (!logs.value.length) { ElMessage.warning('暂无日志可导出'); return }
+  const header = ['日期', '关联任务', '今日进展', '明日计划', '阻碍风险', '工时']
+  const rows = logs.value.map(l => [
+    l.date,
+    getTaskTitle(String(l.taskId || '')),
+    (l.todayDone || '').replace(/\n/g, ' '),
+    (l.tomorrowPlan || '').replace(/\n/g, ' '),
+    (l.blockedReason || '').replace(/\n/g, ' '),
+    l.hoursSpent || 0,
+  ])
+  const csv = [header, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `工作日志_${dayjs().format('YYYYMMDD')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+  ElMessage.success('导出成功')
 }
 
 onMounted(async () => {
@@ -290,6 +342,41 @@ watch(() => projectStore.currentProjectId, async (pid) => {
 }
 .header-subtitle {
   font-size: 12px;
+  color: #86909c;
+  margin-top: 2px;
+}
+
+/* 统计卡片 */
+.log-stats-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 16px 20px;
+  border: 1px solid #e5e6eb;
+}
+.stats-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2329;
+  margin-bottom: 12px;
+}
+.stats-grid {
+  display: flex;
+  gap: 16px;
+}
+.stats-item {
+  text-align: center;
+  padding: 8px 16px;
+  background: #f7f8fc;
+  border-radius: 8px;
+  min-width: 80px;
+}
+.stats-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #3370ff;
+}
+.stats-label {
+  font-size: 11px;
   color: #86909c;
   margin-top: 2px;
 }

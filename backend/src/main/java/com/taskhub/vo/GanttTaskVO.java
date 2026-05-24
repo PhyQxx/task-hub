@@ -9,6 +9,7 @@ public class GanttTaskVO {
     private String id;
     private String text;
     private LocalDate start_date;
+    private LocalDate end_date;
     private Integer duration;
     private Float progress;
     private String parent;

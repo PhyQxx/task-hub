@@ -21,13 +21,13 @@ export const taskApi = {
   history: (taskId: string) => client.get<ApiResponse<any>>(`/tasks/${taskId}/history`),
   batchUpdate: async (data: { taskIds: string[]; status?: string; assigneeId?: string; priority?: string }) => {
     const results = await Promise.all(
-      data.taskIds.map(taskId =>
+      data.taskIds.map((taskId) =>
         client.put<ApiResponse<any>>(`/tasks/${taskId}`, {
           status: data.status,
           assigneeId: data.assigneeId,
           priority: data.priority,
-        })
-      )
+        }),
+      ),
     )
     return { code: 0, data: results.length }
   },
@@ -35,7 +35,7 @@ export const taskApi = {
     add: (taskId: string, dependsOn: string, dependencyType: string) =>
       client.post<ApiResponse<void>>('/tasks/dependencies', { taskId, dependsOn, dependencyType }),
     remove: (taskId: string, dependsOn: string) =>
-      client.delete<ApiResponse<void>>('/tasks/dependencies', { taskId, dependsOn }),
+      client.delete<ApiResponse<void>>(`/tasks/dependencies?taskId=${taskId}&dependsOn=${dependsOn}`),
   },
 }
 
@@ -78,4 +78,14 @@ export const scheduleApi = {
     client.post<ApiResponse<any>>('/tasks/batch-schedule', { projectId, taskIds, mode }),
   reorder: (taskId: string, startDate: string, endDate: string, autoReschedule: boolean) =>
     client.post<ApiResponse<any>>('/tasks/reorder', { taskId, startDate, endDate, autoReschedule }),
+}
+
+export const commentApi = {
+  listByTask: (taskId: string) => client.get<ApiResponse<any[]>>(`/comments/task/${taskId}`),
+  create: (data: { taskId: string; content: string }) => client.post<ApiResponse<any>>('/comments', data),
+  delete: (commentId: string) => client.delete<ApiResponse<void>>(`/comments/${commentId}`),
+}
+
+export const permissionApi = {
+  getMyRole: (projectId: string) => client.get<ApiResponse<string>>(`/projects/${projectId}/my-role`),
 }

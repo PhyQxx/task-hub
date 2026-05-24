@@ -1,6 +1,26 @@
 <template>
   <div class="gantt-view">
     <StatsBar />
+    <!-- 高级筛选栏 -->
+    <div class="gantt-filter-bar">
+      <el-input v-model="filterKeyword" placeholder="搜索任务名称" clearable size="small" style="width:180px" />
+      <el-select v-model="filterStatus" placeholder="状态" clearable size="small" style="width:120px">
+        <el-option label="待处理" value="TODO" />
+        <el-option label="进行中" value="IN_PROGRESS" />
+        <el-option label="已完成" value="DONE" />
+        <el-option label="已阻塞" value="BLOCKED" />
+      </el-select>
+      <el-select v-model="filterPriority" placeholder="优先级" clearable size="small" style="width:120px">
+        <el-option label="低" value="LOW" />
+        <el-option label="中" value="MEDIUM" />
+        <el-option label="高" value="HIGH" />
+        <el-option label="紧急" value="URGENT" />
+      </el-select>
+      <el-select v-model="filterAssignee" placeholder="负责人" clearable size="small" style="width:140px">
+        <el-option v-for="m in memberStore.members" :key="m.memberId" :label="m.nickname" :value="m.memberId" />
+      </el-select>
+      <el-button v-if="filterKeyword || filterStatus || filterPriority || filterAssignee" size="small" @click="clearFilters">清除筛选</el-button>
+    </div>
     <div class="gantt-toolbar">
       <div class="toolbar-left">
         <span class="project-name">{{ projectStore.currentProject?.name || '全部项目' }}</span>
@@ -125,6 +145,8 @@
           <el-input v-model="editTaskForm.description" type="textarea" :rows="3" />
         </el-form-item>
       </el-form>
+      <!-- 评论区 -->
+      <TaskComments v-if="editTaskForm.taskId" :task-id="editTaskForm.taskId" />
       <template #footer>
         <el-button @click="showEditTask = false">取消</el-button>
         <el-button v-if="isAdmin" type="danger" plain @click="handleDeleteTask">删除</el-button>
@@ -146,6 +168,7 @@ import {taskApi} from '@/api'
 import dayjs from 'dayjs'
 import StatsBar from '@/components/StatsBar.vue'
 import SmartScheduleModal from '@/components/SmartScheduleModal.vue'
+import TaskComments from '@/components/TaskComments.vue'
 
 const projectStore = useProjectStore()
 const ganttStore = useGanttStore()
@@ -162,11 +185,16 @@ const showEditTask = ref(false)
 const showSmartSchedule = ref(false)
 const timeScale = ref<'day' | 'week' | 'month' | 'quarter'>('week')
 const ganttDim = ref<'task' | 'member'>('task')
+// 高级筛选
+const filterKeyword = ref('')
+const filterStatus = ref('')
+const filterPriority = ref('')
+const filterAssignee = ref('')
 const timeScales = [
-  { key: 'day', label: '今天' },
-  { key: 'week', label: '周' },
-  { key: 'month', label: '月' },
-  { key: 'quarter', label: '季' },
+  { key: 'day' as const, label: '今天' },
+  { key: 'week' as const, label: '周' },
+  { key: 'month' as const, label: '月' },
+  { key: 'quarter' as const, label: '季' },
 ]
 
 // ganttDim 切换后重渲染
@@ -273,6 +301,21 @@ async function loadGanttData() {
     else if (f === 'today') tasks = tasks.filter((t: any) => t.end_date === todayStr || t.endDate === todayStr)
     else if (f === 'blocked') tasks = tasks.filter((t: any) => t.status === 'BLOCKED')
     else if (f === 'owner') tasks = tasks.filter((t: any) => t.assigneeId === authStore.memberId || t.assignee_id === authStore.memberId)
+  }
+
+  // 高级筛选
+  if (filterKeyword.value) {
+    const kw = filterKeyword.value.toLowerCase()
+    tasks = tasks.filter((t: any) => (t.text || t.title || '').toLowerCase().includes(kw))
+  }
+  if (filterStatus.value) {
+    tasks = tasks.filter((t: any) => t.status === filterStatus.value)
+  }
+  if (filterPriority.value) {
+    tasks = tasks.filter((t: any) => t.priority === filterPriority.value)
+  }
+  if (filterAssignee.value) {
+    tasks = tasks.filter((t: any) => (t.assigneeId || t.assignee_id) === filterAssignee.value)
   }
 
   const today = new Date()
@@ -729,6 +772,19 @@ async function handleDeleteTask() {
   }
 }
 
+// 清除筛选
+function clearFilters() {
+  filterKeyword.value = ''
+  filterStatus.value = ''
+  filterPriority.value = ''
+  filterAssignee.value = ''
+}
+
+// 监听筛选变化重新渲染
+watch([filterKeyword, filterStatus, filterPriority, filterAssignee], () => {
+  if (ganttInited) loadGanttData()
+})
+
 // 监听项目切换
 watch(() => projectStore.currentProjectId, () => {
   if (ganttInited) loadGanttData()
@@ -836,6 +892,15 @@ onBeforeUnmount(() => {
   background: var(--surface-1);
   border-radius: var(--radius-lg);
   overflow: hidden;
+}
+/* 筛选栏 */
+.gantt-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border-light);
 }
 .gantt-toolbar {
   display: flex;

@@ -132,7 +132,7 @@ const swimLanes = computed(() => {
   // 加上未分配泳道
   const unassigned = tasks.filter(t => !t.assigneeId)
   if (unassigned.length) {
-    lanes.push({ memberId: 'unassigned', memberName: '未分配', tasks: unassigned })
+    lanes.push({ memberId: 'unassigned', memberName: '未分配', memberAvatar: undefined, tasks: unassigned })
   }
   return lanes
 })

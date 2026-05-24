@@ -15,8 +15,11 @@ export const useAuthStore = defineStore('auth', () => {
   const memberId = ref<string>(localStorage.getItem('memberId') || '')
   const nickname = ref<string>(localStorage.getItem('nickname') || '')
   const role = ref<string>(localStorage.getItem('role') || '')
+  const projectRole = ref<string>('') // 当前项目中的角色：owner/member/viewer
 
   const isLoggedIn = computed(() => !!token.value)
+  const isProjectOwner = computed(() => role.value === 'admin' || projectRole.value === 'owner')
+  const canEditProject = computed(() => role.value === 'admin' || projectRole.value === 'owner' || projectRole.value === 'member')
 
   function setUser(data: LoginData) {
     token.value = data.token
@@ -27,6 +30,10 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.setItem('memberId', data.memberId)
     localStorage.setItem('nickname', data.nickname)
     localStorage.setItem('role', data.role)
+  }
+
+  function setProjectRole(r: string) {
+    projectRole.value = r
   }
 
   function logout() {
@@ -57,5 +64,5 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  return { token, memberId, nickname, role, isLoggedIn, setUser, logout, fetchMe }
+  return { token, memberId, nickname, role, projectRole, isLoggedIn, isProjectOwner, canEditProject, setUser, setProjectRole, logout, fetchMe }
 })

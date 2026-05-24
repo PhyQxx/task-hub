@@ -15,7 +15,7 @@ public interface TaskMapper extends BaseMapper<Task> {
     @Select("SELECT * FROM tasks WHERE project_id = #{projectId} ORDER BY start_date")
     List<Task> selectByProjectId(@Param("projectId") String projectId);
 
-    @Select("SELECT * FROM tasks WHERE assignee_id = #{assigneeId} AND status != 'completed'")
+    @Select("SELECT * FROM tasks WHERE assignee_id = #{assigneeId} AND status != 'DONE'")
     List<Task> selectActiveByAssigneeId(@Param("assigneeId") String assigneeId);
 
     @Select("SELECT * FROM tasks WHERE assignee_id = #{assigneeId}")

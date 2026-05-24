@@ -11,6 +11,7 @@ import com.taskhub.mapper.TaskDependencyMapper;
 import com.taskhub.mapper.TaskHistoryMapper;
 import com.taskhub.mapper.TaskMapper;
 import com.taskhub.util.TaskIdGenerator;
+import com.taskhub.ws.GanttWebSocketHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,7 @@ public class TaskService {
     private final TaskDependencyMapper dependencyMapper;
     private final TaskHistoryMapper historyMapper;
     private final TaskIdGenerator taskIdGenerator;
+    private final GanttWebSocketHandler wsHandler;
 
     public Task create(TaskCreateDTO dto, String createdBy) {
         // Bug-003: 标题非空校验
@@ -51,8 +53,8 @@ public class TaskService {
         task.setEstimatedHours(dto.getEstimatedHours());
         task.setActualHours(0f);
         task.setProgress(0);
-        task.setStatus(dto.getStatus() != null ? dto.getStatus() : "pending");
-        task.setPriority(dto.getPriority() != null ? dto.getPriority() : "P2");
+        task.setStatus(dto.getStatus() != null ? dto.getStatus() : "TODO");
+        task.setPriority(dto.getPriority() != null ? dto.getPriority() : "MEDIUM");
         task.setIsMilestone(dto.getIsMilestone() != null ? dto.getIsMilestone() : 0);
         task.setMilestoneDate(dto.getMilestoneDate());
         task.setTags(dto.getTags() != null ? JSON.toJSONString(dto.getTags()) : null);
@@ -62,6 +64,7 @@ public class TaskService {
         taskMapper.insert(task);
 
         saveHistory(task.getTaskId(), createdBy, "create", "{}");
+        wsHandler.broadcastTaskCreated(task.getProjectId(), task, createdBy);
         return task;
     }
 
@@ -107,13 +110,19 @@ public class TaskService {
         task.setUpdatedAt(LocalDateTime.now());
         taskMapper.updateById(task);
         saveHistory(taskId, operator, "update", JSON.toJSONString(dto));
+        wsHandler.broadcastTaskUpdate(task.getProjectId(), taskId, JSON.parseObject(JSON.toJSONString(dto)), operator);
         return task;
     }
 
     public void delete(String taskId, String operator) {
+        Task task = getById(taskId);
+        String projectId = task != null ? task.getProjectId() : null;
         taskMapper.delete(new QueryWrapper<Task>().eq("task_id", taskId));
         dependencyMapper.delete(new QueryWrapper<TaskDependency>().eq("task_id", taskId).or().eq("depends_on", taskId));
         saveHistory(taskId, operator, "delete", "{}");
+        if (projectId != null) {
+            wsHandler.broadcastTaskDeleted(projectId, taskId, operator);
+        }
     }
 
     public Task getById(String taskId) {
