@@ -219,3 +219,23 @@ export const useNotificationStore = defineStore('notification', () => {
 
   return { notifications, unreadCount, addNotification, markAsRead, markAllAsRead, clearAll }
 })
+
+export const useUIStore = defineStore('ui', () => {
+  const theme = ref<'light' | 'dark'>( (localStorage.getItem('theme') as any) || 'light')
+
+  function toggleTheme() {
+    theme.value = theme.value === 'light' ? 'dark' : 'light'
+    applyTheme()
+  }
+
+  function applyTheme() {
+    localStorage.setItem('theme', theme.value)
+    if (theme.value === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark')
+    } else {
+      document.documentElement.removeAttribute('data-theme')
+    }
+  }
+
+  return { theme, toggleTheme, applyTheme }
+})

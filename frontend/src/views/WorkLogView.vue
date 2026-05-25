@@ -1,181 +1,121 @@
 <template>
   <div class="worklog-view">
-    <!-- 顶部标题栏 -->
-    <div class="worklog-header">
+    <div class="view-header">
       <div class="header-left">
-        <span class="header-icon">📋</span>
-        <div>
-          <div class="header-title">工作日志</div>
-          <div class="header-subtitle">记录每日进展，追踪团队进度</div>
-        </div>
+        <h1 class="view-title">工作日志</h1>
+        <p class="view-subtitle">记录每日点滴，沉淀团队价值</p>
+      </div>
+      <div class="header-right">
+        <button class="btn btn-ghost" @click="exportCsv">📥 导出报告</button>
       </div>
     </div>
 
-    <!-- 填写区域 -->
-    <div class="log-form-card">
-      <div class="card-title">📝 填写日志</div>
-      <el-form class="log-form" label-position="top" size="large">
-        <!-- 日期选择 -->
-        <el-form-item label="日期">
-          <el-date-picker
-            v-model="logDate"
-            type="date"
-            placeholder="选择日期"
-            format="YYYY-MM-DD"
-            value-format="YYYY-MM-DD"
-            style="width: 200px"
-          />
-        </el-form-item>
+    <div class="worklog-content">
+      <!-- Left: Form & Stats -->
+      <aside class="content-left">
+        <div class="card log-form-card">
+          <div class="card-title">📝 新建日志</div>
+          <el-form label-position="top">
+            <div class="form-row">
+              <el-form-item label="日期">
+                <el-date-picker v-model="logDate" type="date" format="YYYY-MM-DD" value-format="YYYY-MM-DD" style="width:100%" />
+              </el-form-item>
+              <el-form-item label="关联任务">
+                <el-select v-model="logForm.taskId" placeholder="选择任务 (可选)" clearable filterable style="width:100%">
+                  <el-option v-for="task in taskStore.tasks" :key="task.id" :label="task.title" :value="String(task.id)" />
+                </el-select>
+              </el-form-item>
+            </div>
 
-        <!-- 任务标签 -->
-        <el-form-item label="关联任务">
-          <el-select
-            v-model="logForm.taskId"
-            placeholder="选择关联任务（可选）"
-            clearable
-            filterable
-            style="width: 100%"
-          >
-            <el-option
-              v-for="task in taskStore.tasks"
-              :key="task.id"
-              :label="`${task.taskId || ''} ${task.title}`"
-              :value="String(task.id)"
-            />
-          </el-select>
-        </el-form-item>
+            <el-form-item label="🔵 今日进展" required>
+              <el-input v-model="logForm.todayProgress" type="textarea" :rows="3" placeholder="完成了哪些具体工作？" />
+            </el-form-item>
 
-        <!-- 今日进展 -->
-        <el-form-item label="🔵 今日进展" required>
-          <el-input
-            v-model="logForm.todayProgress"
-            type="textarea"
-            :rows="3"
-            placeholder="今天完成了哪些工作？"
-            maxlength="500"
-            show-word-limit
-          />
-        </el-form-item>
+            <el-form-item label="🗓 明日计划">
+              <el-input v-model="logForm.tomorrowPlan" type="textarea" :rows="2" placeholder="下一步的核心目标..." />
+            </el-form-item>
 
-        <!-- 明日计划 -->
-        <el-form-item label="🗓 明日计划">
-          <el-input
-            v-model="logForm.tomorrowPlan"
-            type="textarea"
-            :rows="2"
-            placeholder="明天计划做什么？"
-            maxlength="300"
-            show-word-limit
-          />
-        </el-form-item>
+            <el-form-item label="⚠️ 风险与阻碍">
+              <el-input v-model="logForm.blockers" type="textarea" :rows="2" placeholder="是否有进度卡点？" />
+            </el-form-item>
 
-        <!-- 阻碍风险 -->
-        <el-form-item label="⚠️ 阻碍风险">
-          <el-input
-            v-model="logForm.blockers"
-            type="textarea"
-            :rows="2"
-            placeholder="遇到什么阻碍或风险？"
-            maxlength="300"
-            show-word-limit
-          />
-        </el-form-item>
+            <div class="form-actions">
+              <button class="btn btn-ghost" @click="handleReset">重置</button>
+              <button class="btn btn-primary" :disabled="saving" @click="handleSaveLog">
+                {{ saving ? '保存中...' : '提交日志' }}
+              </button>
+            </div>
+          </el-form>
+        </div>
 
-        <el-form-item>
-          <div class="form-actions">
-            <el-button @click="handleReset">重置</el-button>
-            <el-button type="primary" :loading="saving" @click="handleSaveLog">
-              保存日志
-            </el-button>
+        <div class="card stats-card">
+          <div class="card-title">📊 汇总统计</div>
+          <div class="stats-grid">
+            <div class="stat-box">
+              <span class="stat-val">{{ logs.length }}</span>
+              <span class="stat-lab">总日志数</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-val text-danger">{{ riskCount }}</span>
+              <span class="stat-lab">风险项</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-val">{{ uniqueTaskCount }}</span>
+              <span class="stat-lab">覆盖任务</span>
+            </div>
           </div>
-        </el-form-item>
-      </el-form>
-    </div>
+        </div>
+      </aside>
 
-    <!-- 统计汇总 -->
-    <div class="log-stats-card">
-      <div class="stats-title">📊 统计汇总</div>
-      <div class="stats-grid">
-        <div class="stats-item">
-          <div class="stats-value">{{ logs.length }}</div>
-          <div class="stats-label">日志总数</div>
-        </div>
-        <div class="stats-item">
-          <div class="stats-value">{{ totalHours }}</div>
-          <div class="stats-label">总工时(h)</div>
-        </div>
-        <div class="stats-item">
-          <div class="stats-value">{{ riskCount }}</div>
-          <div class="stats-label">风险/阻塞</div>
-        </div>
-        <div class="stats-item">
-          <div class="stats-value">{{ uniqueTaskCount }}</div>
-          <div class="stats-label">涉及任务</div>
-        </div>
-      </div>
-      <el-button size="small" style="margin-top:12px" @click="exportCsv">📥 导出 CSV</el-button>
-    </div>
-
-    <!-- 历史日志列表 -->
-    <div class="log-history">
-      <div class="history-header">
-        <div class="history-title">📜 历史日志</div>
-        <div class="history-filter">
-          <span class="filter-label">筛选：</span>
+      <!-- Right: History -->
+      <main class="content-right">
+        <div class="history-header">
+          <h3 class="card-title">📜 历史记录</h3>
           <el-date-picker
             v-model="filterDate"
             type="date"
-            placeholder="选择日期查看"
+            placeholder="按日期筛选"
             format="YYYY-MM-DD"
             value-format="YYYY-MM-DD"
             clearable
-            style="width: 180px"
+            size="small"
+            style="width: 150px"
             @change="fetchLogs"
           />
         </div>
-      </div>
 
-      <div v-loading="loading" class="log-list">
-        <el-empty v-if="!logs.length" :description="filterDate ? '该日期暂无日志' : '暂无历史日志'" />
-
-        <div v-for="log in logs" :key="log.id" class="log-item">
-          <div class="log-item-header">
-            <div class="log-meta">
-              <span class="log-date-badge">{{ log.date }}</span>
-              <span v-if="log.taskId" class="log-task-tag">
-                {{ getTaskTitle(log.taskId) }}
-              </span>
-            </div>
-            <el-button size="small" text type="primary" @click="handleEdit(log)">编辑</el-button>
+        <div v-loading="loading" class="log-list">
+          <div v-if="!logs.length" class="empty-state">
+            <span class="empty-icon">📝</span>
+            <p>{{ filterDate ? '所选日期暂无记录' : '暂无任何日志记录' }}</p>
           </div>
 
-          <div class="log-body">
-            <div class="log-section today-progress">
-              <div class="section-icon">🔵</div>
-              <div class="section-content">
-                <div class="section-label">今日进展</div>
-                <div class="section-text">{{ log.todayDone || '—' }}</div>
+          <div v-for="log in logs" :key="log.id" class="log-item">
+            <div class="log-item-header">
+              <div class="log-meta">
+                <span class="log-date">{{ log.date }}</span>
+                <span v-if="log.taskId" class="task-badge">{{ getTaskTitle(log.taskId) }}</span>
               </div>
+              <button class="icon-btn" @click="handleEdit(log)">✏️</button>
             </div>
 
-            <div class="log-section tomorrow-plan">
-              <div class="section-icon">🗓</div>
-              <div class="section-content">
-                <div class="section-label">明日计划</div>
-                <div class="section-text">{{ log.tomorrowPlan || '—' }}</div>
+            <div class="log-item-body">
+              <div class="log-chunk">
+                <span class="chunk-label">PROGRESS</span>
+                <p class="chunk-text">{{ log.todayDone || '未记录进展' }}</p>
               </div>
-            </div>
-
-            <div v-if="log.blockedReason" class="log-section risk-section">
-              <div class="section-icon">⚠️</div>
-              <div class="section-content">
-                <div class="section-label">阻碍风险</div>
-                <div class="section-text risk-text">{{ log.blockedReason }}</div>
+              <div class="log-chunk">
+                <span class="chunk-label">PLAN</span>
+                <p class="chunk-text">{{ log.tomorrowPlan || '未记录计划' }}</p>
+              </div>
+              <div v-if="log.blockedReason" class="log-chunk risk">
+                <span class="chunk-label">RISK</span>
+                <p class="chunk-text">{{ log.blockedReason }}</p>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   </div>
 </template>
@@ -239,11 +179,11 @@ async function handleSaveLog() {
       tomorrowPlan: logForm.value.tomorrowPlan,
       blockedReason: logForm.value.blockers || null,
     })
-    ElMessage.success('日志保存成功')
+    ElMessage.success('日志已保存')
     handleReset()
     await fetchLogs()
   } catch (e: any) {
-    ElMessage.error(e.message || '保存失败')
+    ElMessage.error('保存失败')
   } finally {
     saving.value = false
   }
@@ -262,27 +202,24 @@ function handleEdit(log: WorkLog) {
     blockers: log.blockedReason || '',
   }
   logDate.value = log.date
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-// 统计
-const totalHours = computed(() => logs.value.reduce((sum, l) => sum + (l.hoursSpent || 0), 0).toFixed(1))
 const riskCount = computed(() => logs.value.filter(l => l.currentStatus === '有风险' || l.currentStatus === '已阻塞' || l.blockedReason).length)
 const uniqueTaskCount = computed(() => new Set(logs.value.filter(l => l.taskId).map(l => l.taskId)).size)
 
-// 导出 CSV
 function exportCsv() {
   if (!logs.value.length) { ElMessage.warning('暂无日志可导出'); return }
-  const header = ['日期', '关联任务', '今日进展', '明日计划', '阻碍风险', '工时']
+  const header = ['日期', '关联任务', '今日进展', '明日计划', '阻碍风险']
   const rows = logs.value.map(l => [
     l.date,
     getTaskTitle(String(l.taskId || '')),
     (l.todayDone || '').replace(/\n/g, ' '),
     (l.tomorrowPlan || '').replace(/\n/g, ' '),
     (l.blockedReason || '').replace(/\n/g, ' '),
-    l.hoursSpent || 0,
   ])
   const csv = [header, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
-  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -310,222 +247,158 @@ watch(() => projectStore.currentProjectId, async (pid) => {
 
 <style scoped>
 .worklog-view {
-  display: flex;
-  flex-direction: column;
+  padding: 24px;
   height: 100%;
-  padding: 20px 24px;
-  gap: 20px;
   overflow-y: auto;
-  background: #f7f8fc;
+  background: var(--bg);
 }
 
-/* 顶部标题栏 */
-.worklog-header {
+.view-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  background: #fff;
-  padding: 16px 20px;
-  border-radius: 10px;
-  border: 1px solid #e5e6eb;
-}
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.header-icon { font-size: 24px; }
-.header-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: #1f2329;
-}
-.header-subtitle {
-  font-size: 12px;
-  color: #86909c;
-  margin-top: 2px;
+  align-items: flex-end;
+  margin-bottom: 24px;
 }
 
-/* 统计卡片 */
-.log-stats-card {
-  background: #fff;
-  border-radius: 10px;
-  padding: 16px 20px;
-  border: 1px solid #e5e6eb;
-}
-.stats-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1f2329;
-  margin-bottom: 12px;
-}
-.stats-grid {
-  display: flex;
-  gap: 16px;
-}
-.stats-item {
-  text-align: center;
-  padding: 8px 16px;
-  background: #f7f8fc;
-  border-radius: 8px;
-  min-width: 80px;
-}
-.stats-value {
-  font-size: 20px;
-  font-weight: 700;
-  color: #3370ff;
-}
-.stats-label {
-  font-size: 11px;
-  color: #86909c;
-  margin-top: 2px;
+.view-title { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.view-subtitle { font-size: 13px; color: var(--text-faint); }
+
+.worklog-content {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 24px;
+  align-items: start;
 }
 
-/* 填写卡片 */
-.log-form-card {
-  background: #fff;
-  border-radius: 10px;
-  padding: 20px 24px;
-  border: 1px solid #e5e6eb;
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-bottom: 24px;
 }
+
 .card-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1f2329;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   margin-bottom: 16px;
 }
-.log-form {
-  max-width: 720px;
-}
+
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
 .form-actions {
   display: flex;
-  gap: 10px;
-  margin-top: 4px;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
 }
 
-/* 历史日志区 */
-.log-history {
-  background: #fff;
-  border-radius: 10px;
-  padding: 20px 24px;
-  border: 1px solid #e5e6eb;
-  flex: 1;
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
 }
+
+.stat-box {
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-val { font-size: 18px; font-weight: 700; color: var(--text); }
+.stat-lab { font-size: 10px; color: var(--text-faint); font-weight: 600; text-transform: uppercase; }
+
 .history-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-.history-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1f2329;
-}
-.history-filter {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.filter-label {
-  font-size: 12px;
-  color: #86909c;
-}
-.log-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
 }
 
-/* 日志条目 */
+.log-list { display: flex; flex-direction: column; gap: 16px; }
+
 .log-item {
-  background: #fafafa;
-  border: 1px solid #f1f2f5;
-  border-radius: 8px;
-  padding: 14px 16px;
-  transition: box-shadow 0.15s, border-color 0.15s;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  transition: all 0.2s ease;
 }
-.log-item:hover {
-  box-shadow: 0 2px 8px rgba(31,35,41,0.06);
-  border-color: #e4e7ec;
-}
+
+.log-item:hover { border-color: var(--text-faint); }
+
 .log-item-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
-}
-.log-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.log-date-badge {
-  font-size: 12px;
-  font-weight: 600;
-  color: #3370ff;
-  background: rgba(51,112,255,0.08);
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-.log-task-tag {
-  font-size: 11px;
-  padding: 2px 8px;
-  background: rgba(100,181,246,0.12);
-  color: #3370ff;
-  border-radius: 4px;
+  margin-bottom: 16px;
 }
 
-/* 日志内容体 */
-.log-body {
+.log-meta { display: flex; align-items: center; gap: 12px; }
+.log-date { font-size: 13px; font-weight: 700; color: var(--primary); }
+.task-badge {
+  font-size: 11px;
+  background: var(--surface-3);
+  color: var(--text-secondary);
+  padding: 2px 8px;
+  border-radius: 4px;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.icon-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+.icon-btn:hover { opacity: 1; }
+
+.log-item-body { display: flex; flex-direction: column; gap: 12px; }
+.log-chunk { padding-left: 12px; border-left: 2px solid var(--border-strong); }
+.log-chunk.risk { border-left-color: var(--danger); }
+
+.chunk-label {
+  display: block;
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--text-faint);
+  margin-bottom: 4px;
+  letter-spacing: 0.5px;
+}
+
+.chunk-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.risk .chunk-text { color: var(--danger); }
+
+.empty-state {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  padding: 60px 0;
+  color: var(--text-faint);
 }
-.log-section {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-  padding: 8px 10px;
-  border-radius: 6px;
-  background: #fff;
-  border: 1px solid transparent;
+.empty-icon { font-size: 32px; margin-bottom: 12px; opacity: 0.5; }
+
+.text-danger { color: var(--danger) !important; }
+
+@media (max-width: 900px) {
+  .worklog-content { grid-template-columns: 1fr; }
 }
-.log-section.today-progress {
-  border-color: rgba(51,112,255,0.12);
-}
-.log-section.tomorrow-plan {
-  border-color: rgba(0,185,76,0.12);
-}
-.log-section.risk-section {
-  border-color: rgba(245,63,63,0.12);
-  background: rgba(245,63,63,0.03);
-}
-.section-icon {
-  font-size: 14px;
-  flex-shrink: 0;
-  margin-top: 1px;
-}
-.section-content {
-  flex: 1;
-  min-width: 0;
-}
-.section-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: #86909c;
-  margin-bottom: 2px;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-.section-text {
-  font-size: 13px;
-  color: #1f2329;
-  line-height: 1.5;
-  word-break: break-word;
-}
-.risk-text { color: #c0261c; }
 </style>

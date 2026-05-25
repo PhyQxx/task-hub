@@ -1,55 +1,50 @@
 <template>
   <div class="stats-bar">
-    <div class="stat-item">
-      <span class="stat-label">总任务</span>
-      <span class="stat-value">{{ total }}</span>
-    </div>
-    <div class="stat-divider"></div>
-    <div class="stat-item">
-      <span class="stat-label">本周新增</span>
-      <span class="stat-value" style="color:var(--success)">+{{ weeklyNew }}</span>
-    </div>
-    <div class="stat-divider"></div>
-    <div class="stat-item">
-      <span class="stat-label">进行中</span>
-      <span class="stat-value" style="color:var(--primary)">{{ inProgress }}</span>
-    </div>
-    <div class="stat-divider"></div>
-    <div class="stat-item">
-      <span class="stat-label">环比</span>
-      <span class="stat-value" :style="weekOverWeek >= 0 ? 'color:var(--success)' : 'color:var(--danger)'">
-        {{ weekOverWeek >= 0 ? '+' : '' }}{{ weekOverWeek }}
-      </span>
-    </div>
-    <div class="stat-divider"></div>
-    <div class="stat-item">
-      <span class="stat-label">已完成</span>
-      <span class="stat-value" style="color:var(--success)">{{ done }}</span>
-    </div>
-    <div class="stat-divider"></div>
-    <div class="stat-item">
-      <span class="stat-label">完成率</span>
-      <span class="stat-value">{{ completionRate }}%</span>
-    </div>
-    <div class="stat-divider"></div>
-    <div class="stat-item">
-      <span class="stat-label">已阻塞</span>
-      <span class="stat-value" style="color:var(--danger)">{{ blocked }}</span>
-    </div>
-    <div class="stat-divider"></div>
-    <div class="stat-item">
-      <span class="stat-label">需关注</span>
-      <span class="stat-value" style="color:var(--warning)">{{ attention }}</span>
-    </div>
-    <div class="stat-divider"></div>
-    <div class="stat-item">
-      <span class="stat-label">逾期</span>
-      <span class="stat-value" style="color:var(--danger)">{{ overdue }}</span>
-    </div>
-    <div class="stat-divider"></div>
-    <div class="stat-item">
-      <span class="stat-label">本周到期</span>
-      <span class="stat-value">{{ weeklyDue }}</span>
+    <div class="stats-scroll">
+      <div class="stat-group">
+        <div class="stat-item">
+          <span class="stat-value">{{ total }}</span>
+          <span class="stat-label">总任务</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value text-success">+{{ weeklyNew }}</span>
+          <span class="stat-label">本周新增</span>
+        </div>
+      </div>
+      
+      <div class="stat-sep"></div>
+
+      <div class="stat-group">
+        <div class="stat-item">
+          <span class="stat-value text-primary">{{ inProgress }}</span>
+          <span class="stat-label">进行中</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value text-success">{{ done }}</span>
+          <span class="stat-label">已完成</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">{{ completionRate }}%</span>
+          <span class="stat-label">完成率</span>
+        </div>
+      </div>
+
+      <div class="stat-sep"></div>
+
+      <div class="stat-group">
+        <div class="stat-item">
+          <span class="stat-value text-danger">{{ blocked }}</span>
+          <span class="stat-label">已阻塞</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value text-warning">{{ overdue }}</span>
+          <span class="stat-label">逾期</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">{{ weeklyDue }}</span>
+          <span class="stat-label">本周到期</span>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -71,8 +66,7 @@ const inProgress = computed(() => tasks.value.filter((t: any) => t.status === 'I
 const done = computed(() => tasks.value.filter((t: any) => t.status === 'DONE').length)
 const blocked = computed(() => tasks.value.filter((t: any) => t.status === 'BLOCKED').length)
 const completionRate = computed(() => total.value ? Math.round((done.value / total.value) * 100) : 0)
-const weekOverWeek = computed(() => 2) // TODO: real calculation
-const attention = computed(() => blocked.value)
+
 const overdue = computed(() => {
   const today = new Date().toISOString().split('T')[0]
   return tasks.value.filter((t: any) => t.endDate && t.endDate < today && t.status !== 'DONE').length
@@ -90,23 +84,61 @@ const weeklyDue = computed(() => {
 
 <style scoped>
 .stats-bar {
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 16px;
+  overflow: hidden;
+}
+
+.stats-scroll {
   display: flex;
   align-items: center;
-  gap: 0;
-  padding: 10px 20px;
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--border);
+  gap: 24px;
   overflow-x: auto;
 }
+
+.stat-group {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
 .stat-item {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  padding: 0 16px;
+  align-items: flex-start;
   min-width: fit-content;
 }
-.stat-label { font-size: 11px; color: var(--text-faint); white-space: nowrap; }
-.stat-value { font-size: 18px; font-weight: 700; color: var(--text); line-height: 1; }
-.stat-divider { width: 1px; height: 32px; background: var(--border); flex-shrink: 0; }
+
+.stat-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+}
+
+.stat-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.text-success { color: var(--success); }
+.text-primary { color: var(--primary); }
+.text-danger { color: var(--danger); }
+.text-warning { color: var(--warning); }
+
+/* Hide scrollbar */
+.stats-scroll::-webkit-scrollbar { display: none; }
+.stats-scroll { -ms-overflow-style: none; scrollbar-width: none; }
 </style>
+

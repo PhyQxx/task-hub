@@ -1,95 +1,107 @@
 <template>
   <div class="login-page">
-    <!-- 左侧品牌区 -->
+    <!-- Left: Brand -->
     <div class="login-brand">
-      <div class="brand-content">
-        <div class="brand-logo">📋 任务舱</div>
-        <div class="brand-slogan">让团队协作更高效</div>
-        <div class="brand-features">
-          <div class="feature-item">
-            <span class="feature-icon">📊</span>
-            <span>甘特图 · 看板 · 泳道</span>
+      <div class="brand-top">
+        <div class="brand-logo">
+          <span class="logo-icon">📋</span>
+          <span class="logo-text">TaskHub</span>
+        </div>
+        <p class="brand-slogan">为极客打造的下一代任务协作平台</p>
+      </div>
+
+      <div class="brand-features">
+        <div class="feature-item">
+          <span class="feature-icon">📊</span>
+          <div class="feature-text">
+            <h3>多维视图</h3>
+            <p>甘特图、看板、泳道图，全方位掌控进度</p>
           </div>
-          <div class="feature-item">
-            <span class="feature-icon">👥</span>
-            <span>成员管理 · 角色权限</span>
+        </div>
+        <div class="feature-item">
+          <span class="feature-icon">🧠</span>
+          <div class="feature-text">
+            <h3>智能排程</h3>
+            <p>内置智能算法，自动优化成员任务分配</p>
           </div>
-          <div class="feature-item">
-            <span class="feature-icon">⚡</span>
-            <span>智能排程 · 负载均衡</span>
+        </div>
+        <div class="feature-item">
+          <span class="feature-icon">⚡</span>
+          <div class="feature-text">
+            <h3>实时同步</h3>
+            <p>毫秒级状态同步，确保团队信息高度一致</p>
           </div>
         </div>
       </div>
-      <div class="brand-version">v2.0 · 飞书风格</div>
+
+      <div class="brand-footer">
+        <span class="version-tag">PRO v2.0</span>
+        <span class="copyright">© 2024 NewCity Tech.</span>
+      </div>
     </div>
 
-    <!-- 右侧登录区 -->
+    <!-- Right: Form -->
     <div class="login-main">
-      <div class="login-card">
+      <div class="login-container">
         <div class="login-header">
-          <h1 class="login-title">登录任务舱</h1>
-          <p class="login-subtitle">使用你的账号登录</p>
+          <h1 class="login-title">欢迎回来</h1>
+          <p class="login-subtitle">请登录以管理您的项目与任务</p>
         </div>
 
         <el-form class="login-form" @submit.prevent="handleLogin" :model="form" :rules="rules" ref="formRef">
           <el-form-item prop="phone">
-            <label class="field-label">手机号</label>
-            <el-input
+            <label class="form-label">手机号</label>
+            <input
               v-model="form.phone"
+              class="form-input"
               placeholder="请输入手机号"
-              size="large"
-              clearable
             />
           </el-form-item>
 
           <el-form-item prop="password">
-            <label class="field-label">密码</label>
-            <el-input
+            <label class="form-label">登录密码</label>
+            <input
               v-model="form.password"
               type="password"
+              class="form-input"
               placeholder="请输入密码"
-              size="large"
-              show-password
               @keyup.enter="handleLogin"
             />
           </el-form-item>
 
-          <el-form-item>
-            <el-button
-              type="primary"
-              size="large"
-              :loading="loading"
-              class="login-btn"
-              @click="handleLogin"
-            >
-              {{ loading ? '登录中...' : '登录' }}
-            </el-button>
-          </el-form-item>
+          <button
+            type="submit"
+            class="btn btn-primary login-btn"
+            :disabled="loading"
+            @click.prevent="handleLogin"
+          >
+            {{ loading ? '正在验证身份...' : '立即登录' }}
+          </button>
         </el-form>
 
-        <div class="login-footer">
+        <div class="login-actions">
           <span>还没有账号？</span>
-          <a href="#" @click.prevent="showRegister = true">立即注册 →</a>
+          <button class="btn btn-ghost register-link" @click="showRegister = true">立即注册</button>
         </div>
       </div>
     </div>
 
-    <!-- 注册弹窗 -->
-    <el-dialog v-model="showRegister" title="注册账号" width="420px" :close-on-click-modal="false" destroy-on-close>
-      <el-form :model="registerForm" :rules="registerRules" ref="registerFormRef" label-width="70px">
+    <!-- Register Modal -->
+    <el-dialog v-model="showRegister" title="创建新账号" width="400px" destroy-on-close>
+      <el-form :model="registerForm" :rules="registerRules" ref="registerFormRef" label-position="top">
         <el-form-item label="手机号" prop="phone">
-          <el-input v-model="registerForm.phone" placeholder="手机号" clearable />
+          <el-input v-model="registerForm.phone" placeholder="11 位手机号" />
         </el-form-item>
         <el-form-item label="昵称" prop="nickname">
-          <el-input v-model="registerForm.nickname" placeholder="你的昵称" clearable />
+          <el-input v-model="registerForm.nickname" placeholder="如何称呼您？" />
         </el-form-item>
-        <el-form-item label="密码" prop="password">
-          <el-input v-model="registerForm.password" type="password" placeholder="密码（至少6位）" show-password />
+        <el-form-item label="设置密码" prop="password">
+          <el-input v-model="registerForm.password" type="password" placeholder="至少 6 位字符" show-password />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showRegister = false">取消</el-button>
-        <el-button type="primary" :loading="registering" @click="handleRegister">注册</el-button>
+        <button class="btn btn-ghost" @click="showRegister = false">取消</button>
+        <button class="btn btn-primary" :loading="registering" @click="handleRegister">确认注册</button>
       </template>
     </el-dialog>
   </div>
@@ -134,13 +146,13 @@ async function handleLogin() {
     const res: any = await client.post('/auth/login', form)
     if (res.code === 0) {
       authStore.setUser(res.data)
-      ElMessage.success('登录成功')
+      ElMessage.success('欢迎回来')
       window.location.href = '/'
     } else {
       ElMessage.error(res.message || '登录失败')
     }
   } catch (err: any) {
-    ElMessage.error(err.message || '登录失败')
+    ElMessage.error('服务连接异常')
   } finally {
     loading.value = false
   }
@@ -162,7 +174,7 @@ async function handleRegister() {
       ElMessage.error(res.message || '注册失败')
     }
   } catch (err: any) {
-    ElMessage.error(err.message || '注册失败')
+    ElMessage.error('注册异常')
   } finally {
     registering.value = false
   }
@@ -174,128 +186,69 @@ async function handleRegister() {
   display: flex;
   height: 100vh;
   width: 100vw;
+  background: var(--bg);
   overflow: hidden;
 }
 
-/* 左侧品牌区 */
+/* Brand Section */
 .login-brand {
-  width: 420px;
-  flex-shrink: 0;
-  background: var(--primary);
+  width: 440px;
+  background: var(--surface-1);
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 40px;
-  color: #fff;
+  padding: 60px 48px;
+  position: relative;
 }
 
-.brand-content { margin-top: 40px; }
+.brand-logo { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.logo-icon { font-size: 28px; }
+.logo-text { font-size: 24px; font-weight: 800; letter-spacing: -1px; color: var(--text); }
+.brand-slogan { font-size: 15px; color: var(--text-faint); font-weight: 500; }
 
-.brand-logo {
-  font-size: 32px;
-  font-weight: 700;
-  color: #ffffff;
-  margin-bottom: 8px;
-}
+.brand-features { display: flex; flex-direction: column; gap: 32px; }
+.feature-item { display: flex; gap: 16px; align-items: flex-start; }
+.feature-icon { font-size: 20px; padding-top: 2px; }
+.feature-text h3 { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.feature-text p { font-size: 13px; color: var(--text-faint); line-height: 1.5; margin: 0; }
 
-.brand-slogan {
-  font-size: 16px;
-  color: rgba(255,255,255,0.75);
-  margin-bottom: 48px;
-}
+.brand-footer { display: flex; justify-content: space-between; align-items: center; }
+.version-tag { font-size: 10px; font-weight: 800; background: var(--surface-3); padding: 2px 8px; border-radius: 4px; color: var(--text-faint); }
+.copyright { font-size: 11px; color: var(--text-muted); }
 
-.brand-features { display: flex; flex-direction: column; gap: 16px; }
-
-.feature-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-  color: rgba(255,255,255,0.9);
-}
-
-.feature-icon { font-size: 18px; }
-
-.brand-version {
-  font-size: 12px;
-  color: rgba(255,255,255,0.5);
-}
-
+/* Main Section */
 .login-main {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg);
   padding: 40px;
 }
 
-.login-card {
-  width: 400px;
-  max-width: 100%;
-}
+.login-container { width: 360px; }
 
-.login-header { margin-bottom: 32px; }
+.login-header { margin-bottom: 40px; }
+.login-title { font-size: 28px; font-weight: 700; color: var(--text); margin-bottom: 8px; letter-spacing: -0.5px; }
+.login-subtitle { font-size: 14px; color: var(--text-faint); }
 
-.login-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: 6px;
-  letter-spacing: -0.3px;
-}
+.login-form { display: flex; flex-direction: column; gap: 20px; }
+.login-btn { width: 100%; height: 42px; font-size: 15px; margin-top: 10px; }
 
-.login-subtitle {
-  font-size: 14px;
-  color: var(--text-secondary);
-}
-
-.login-form { margin-top: 8px; }
-
-.field-label {
-  display: block;
+.login-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 32px;
   font-size: 13px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
+  color: var(--text-faint);
 }
+.register-link { color: var(--primary); font-weight: 700; padding: 4px 8px; }
 
-.login-btn {
-  width: 100%;
-  height: 42px;
-  font-size: 15px;
-  font-weight: 500;
-  background: var(--primary) !important;
-  border-color: var(--primary) !important;
-  letter-spacing: 0.3px;
-}
-
-.login-btn:hover {
-  background: var(--primary-hover) !important;
-  border-color: var(--primary-hover) !important;
-}
-
-.login-footer {
-  text-align: center;
-  margin-top: 20px;
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.login-footer a {
-  color: var(--primary);
-  text-decoration: none;
-  font-weight: 500;
-  margin-left: 4px;
-}
-
-.login-footer a:hover {
-  text-decoration: underline;
-}
-
-/* 响应式 */
-@media (max-width: 768px) {
+/* Responsive */
+@media (max-width: 900px) {
   .login-brand { display: none; }
-  .login-main { padding: 20px; }
 }
 </style>
+

@@ -3,14 +3,20 @@
   <div v-else class="app-layout">
     <!-- Header -->
     <header class="header">
-      <div class="header-logo">📋 任务舱 <span class="version-badge">v2</span></div>
+      <div class="header-logo">
+        <span class="logo-icon">📋</span>
+        <span class="logo-text">任务舱</span>
+        <span class="version-badge">v2.0</span>
+      </div>
 
-      <select class="project-select" v-model="currentProjectId" @change="onProjectChange">
-        <option value="">🌐 所有项目概览</option>
-        <option v-for="p in projectStore.projects" :key="p.projectId" :value="p.projectId">{{ p.name }}</option>
-      </select>
+      <div class="header-project-switcher">
+        <select class="project-select" v-model="currentProjectId" @change="onProjectChange">
+          <option value="">🌐 所有项目概览</option>
+          <option v-for="p in projectStore.projects" :key="p.projectId" :value="p.projectId">{{ p.name }}</option>
+        </select>
+      </div>
 
-      <div class="header-tabs">
+      <nav class="header-tabs">
         <button
           v-for="tab in tabs"
           :key="tab.key"
@@ -18,18 +24,26 @@
           :class="{ active: activeTab === tab.key }"
           @click="$router.push('/' + tab.key)"
         >
-          {{ tab.icon }} {{ tab.label }}
+          <span class="tab-icon">{{ tab.icon }}</span>
+          <span class="tab-label">{{ tab.label }}</span>
         </button>
-      </div>
+      </nav>
 
       <div class="header-spacer"></div>
 
       <div class="header-actions">
         <NotificationBell />
+        <button class="btn btn-ghost theme-toggle" @click="uiStore.toggleTheme" :title="uiStore.theme === 'dark' ? '切换到明亮模式' : '切换到暗黑模式'">
+          <span v-if="uiStore.theme === 'dark'">☀️</span>
+          <span v-else>🌙</span>
+        </button>
         <el-dropdown trigger="click">
-          <el-avatar :style="{ background: 'var(--primary)', fontSize: '12px', cursor: 'pointer' }" size="small">
-            {{ userName.slice(0, 1) }}
-          </el-avatar>
+          <div class="user-avatar-wrap">
+            <el-avatar class="user-avatar" :size="28">
+              {{ userName.slice(0, 1) }}
+            </el-avatar>
+            <span class="user-name">{{ userName }}</span>
+          </div>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item>{{ userName }}</el-dropdown-item>
@@ -43,52 +57,53 @@
     <div class="layout">
       <!-- Sidebar -->
       <aside class="sidebar">
-        <div class="sidebar-section">
-          <div class="sidebar-title">快捷筛选</div>
-          <div
-            v-for="f in filters"
-            :key="f.key"
-            class="sidebar-item"
-            :class="{ active: activeFilter === f.key }"
-            @click="setFilter(f.key)"
-          >
-            {{ f.icon }} {{ f.label }}
-          </div>
-        </div>
-
-        <div class="sidebar-section">
-          <div class="sidebar-title">📁 项目列表</div>
-          <div
-            v-for="p in projectStore.projects"
-            :key="p.projectId"
-            class="sidebar-item project-item"
-            :class="{ active: currentProjectId === p.projectId }"
-            @click="selectProject(p.projectId)"
-          >
-            <span class="sidebar-dot dot-green"></span>
-            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.name }}</span>
-            <span v-if="isAdmin" class="project-item-actions" @click.stop="openEditProject(p)">✏️</span>
-          </div>
-          <div v-if="isAdmin" class="sidebar-item" style="color: var(--primary)" @click="openCreateProject">
-            + 新建项目
-          </div>
-        </div>
-
-
-
-        <div class="sidebar-section">
-          <div class="sidebar-title">👤 当前角色</div>
-          <div style="padding:8px 10px;font-size:11px;line-height:1.6;color:var(--text-muted)">
-            <div style="margin-bottom:6px">
-              <span class="role-badge" :class="isAdmin ? 'role-admin' : 'role-member'" style="font-size:9px">
-                {{ isAdmin ? '👑 管理员' : '👤 用户' }}
-              </span>
-              {{ isAdmin ? ' 全部操作权限' : ' 查看/更新任务' }}
+        <div class="sidebar-scroll">
+          <div class="sidebar-section">
+            <div class="sidebar-title">快捷筛选</div>
+            <div
+              v-for="f in filters"
+              :key="f.key"
+              class="sidebar-item"
+              :class="{ active: activeFilter === f.key }"
+              @click="setFilter(f.key)"
+            >
+              <span class="item-icon">{{ f.icon }}</span>
+              <span class="item-label">{{ f.label }}</span>
             </div>
-            <div v-if="currentProjectId && authStore.projectRole">
-              <span class="role-badge" :class="'role-' + authStore.projectRole" style="font-size:9px">
-                {{ projectRoleLabel }}
-              </span>
+          </div>
+
+          <div class="sidebar-section">
+            <div class="sidebar-title">📁 项目列表</div>
+            <div
+              v-for="p in projectStore.projects"
+              :key="p.projectId"
+              class="sidebar-item project-item"
+              :class="{ active: currentProjectId === p.projectId }"
+              @click="selectProject(p.projectId)"
+            >
+              <span class="sidebar-dot dot-green"></span>
+              <span class="item-label project-name-text">{{ p.name }}</span>
+              <span v-if="isAdmin" class="project-item-actions" @click.stop="openEditProject(p)">✏️</span>
+            </div>
+            <div v-if="isAdmin" class="sidebar-item add-project-btn" @click="openCreateProject">
+              <span class="item-icon">+</span>
+              <span class="item-label">新建项目</span>
+            </div>
+          </div>
+
+          <div class="sidebar-section">
+            <div class="sidebar-title">👤 当前角色</div>
+            <div class="role-info">
+              <div class="role-row">
+                <span class="role-badge" :class="isAdmin ? 'role-admin' : 'role-member'">
+                  {{ isAdmin ? '👑 管理员' : '👤 用户' }}
+                </span>
+              </div>
+              <div v-if="currentProjectId && authStore.projectRole" class="role-row">
+                <span class="role-badge" :class="'role-' + authStore.projectRole">
+                  {{ projectRoleLabel }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -103,6 +118,15 @@
     <!-- Smart Schedule Modal -->
     <SmartScheduleModal :visible="showSmartSchedule" @close="showSmartSchedule = false" />
 
+    <!-- Global Components -->
+    <CommandPalette />
+    <TaskDetailDrawer 
+      v-model:visible="showDrawer" 
+      :task-id="selectedTaskId" 
+      @updated="onTaskUpdated" 
+    />
+
+    <!-- Modals -->
     <!-- New Task Modal -->
     <div v-if="showCreateTask" class="modal-overlay" @click.self="showCreateTask = false">
       <div class="modal" style="width:520px">
@@ -111,7 +135,7 @@
           <label class="form-label">任务名称 *</label>
           <input class="form-input" v-model="taskForm.title" placeholder="请输入任务名称" />
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-row">
           <div class="modal-field">
             <label class="form-label">负责人</label>
             <select class="form-input" v-model="taskForm.assigneeId">
@@ -129,14 +153,14 @@
             </select>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+        <div class="form-row-3">
           <div class="modal-field">
             <label class="form-label">开始日期</label>
             <input class="form-input" type="date" v-model="taskForm.startDate" />
           </div>
           <div class="modal-field">
             <label class="form-label">工期（天）</label>
-            <input class="form-input" type="number" v-model="taskForm.days" min="1" placeholder="填天数" />
+            <input class="form-input" type="number" v-model="taskForm.days" min="1" />
           </div>
           <div class="modal-field">
             <label class="form-label">截止日期</label>
@@ -145,11 +169,11 @@
         </div>
         <div class="modal-field">
           <label class="form-label">描述</label>
-          <textarea class="form-textarea" v-model="taskForm.description" style="height:60px" placeholder="补充任务详情..."></textarea>
+          <textarea class="form-textarea" v-model="taskForm.description" style="height:80px" placeholder="补充任务详情..."></textarea>
         </div>
         <div class="modal-actions">
           <button class="btn btn-ghost" @click="showCreateTask = false">取消</button>
-          <button class="btn btn-primary" @click="handleCreateTask">创建</button>
+          <button class="btn btn-primary" @click="handleCreateTask">创建任务</button>
         </div>
       </div>
     </div>
@@ -164,13 +188,13 @@
         </div>
         <div class="modal-field">
           <label class="form-label">描述</label>
-          <textarea class="form-textarea" v-model="projectForm.description" style="height:60px" placeholder="项目描述..."></textarea>
+          <textarea class="form-textarea" v-model="projectForm.description" style="height:80px" placeholder="项目描述..."></textarea>
         </div>
         <div class="modal-actions">
-          <button v-if="editingProject && isAdmin" class="btn btn-danger" style="margin-right:auto" @click="handleDeleteProject">删除</button>
+          <button v-if="editingProject && isAdmin" class="btn btn-danger" style="margin-right:auto" @click="handleDeleteProject">删除项目</button>
           <button class="btn btn-ghost" @click="closeProjectModal">取消</button>
           <button class="btn btn-primary" @click="editingProject ? handleUpdateProject() : handleCreateProject()">
-            {{ editingProject ? '保存' : '创建' }}
+            {{ editingProject ? '保存修改' : '立即创建' }}
           </button>
         </div>
       </div>
@@ -181,13 +205,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useProjectStore, useMemberStore, useAuthStore, useTaskStore, useGanttStore } from '@/stores'
+import { useProjectStore, useMemberStore, useAuthStore, useTaskStore, useGanttStore, useUIStore } from '@/stores'
 import { projectApi, permissionApi } from '@/api'
 import { ElMessage } from 'element-plus'
 import { useWebSocket } from '@/composables/useWebSocket'
 import LoginView from '@/views/LoginView.vue'
 import SmartScheduleModal from '@/components/SmartScheduleModal.vue'
 import NotificationBell from '@/components/NotificationBell.vue'
+import CommandPalette from '@/components/CommandPalette.vue'
+import TaskDetailDrawer from '@/components/TaskDetailDrawer.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -196,7 +222,12 @@ const memberStore = useMemberStore()
 const authStore = useAuthStore()
 const taskStore = useTaskStore()
 const ganttStore = useGanttStore()
+const uiStore = useUIStore()
 const { connect: wsConnect, disconnect: wsDisconnect } = useWebSocket()
+
+// Global UI State
+const showDrawer = ref(false)
+const selectedTaskId = ref<string | null>(null)
 
 const activeTab = computed(() => {
   const name = route.name as string
@@ -205,9 +236,23 @@ const activeTab = computed(() => {
 const activeFilter = ref('')
 const showSmartSchedule = ref(false)
 const showCreateTask = ref(false)
-const showCreateTaskModal = ref(false)
 const showCreateProject = ref(false)
 const editingProject = ref<any>(null)
+
+function onTaskUpdated() {
+  if (projectStore.currentProjectId) {
+    taskStore.fetchTasks(projectStore.currentProjectId)
+  }
+}
+
+function handleGlobalEvents(e: any) {
+  if (e.type === 'cmd-new-task') {
+    showCreateTask.value = true
+  } else if (e.type === 'cmd-open-task') {
+    selectedTaskId.value = e.detail.taskId
+    showDrawer.value = true
+  }
+}
 
 const tabs = [
   { key: 'gantt', label: '甘特图', icon: '📊' },
@@ -357,7 +402,6 @@ async function handleCreateTask() {
     ElMessage.success('任务创建成功')
     showCreateTask.value = false
     taskForm.value = { title: '', assigneeId: '', priority: 'MEDIUM', startDate: '', days: 5, endDate: '', description: '' }
-    // Refresh gantt/kanban
     if (projectStore.currentProjectId) {
       await taskStore.fetchTasks(projectStore.currentProjectId)
     }
@@ -390,6 +434,7 @@ function handleLogout() {
 }
 
 onMounted(async () => {
+  uiStore.applyTheme()
   await authStore.fetchMe()
   if (!authStore.isLoggedIn) return
   await projectStore.fetchProjects()
@@ -399,13 +444,17 @@ onMounted(async () => {
     fetchProjectRole(projectStore.currentProjectId)
   }
   wsConnect()
+
+  window.addEventListener('cmd-new-task', handleGlobalEvents)
+  window.addEventListener('cmd-open-task', handleGlobalEvents)
 })
 
 onBeforeUnmount(() => {
   wsDisconnect()
+  window.removeEventListener('cmd-new-task', handleGlobalEvents)
+  window.removeEventListener('cmd-open-task', handleGlobalEvents)
 })
 
-// Fetch tasks when switching tabs to avoid duplicate calls from hidden views
 watch(() => route.name, async (name) => {
   if (!projectStore.currentProjectId) return
   if (name === 'kanban' || name === 'swimlane') {
@@ -414,45 +463,6 @@ watch(() => route.name, async (name) => {
 })
 </script>
 
-<style>
-:root {
-  --bg: #0d0d0f;
-  --surface-1: #131316;
-  --surface-2: #1a1a1f;
-  --surface-3: #222228;
-  --surface-4: #2a2a32;
-  --surface-5: #32323c;
-  --surface-elevated: #38383f;
-  --border: #2e2e38;
-  --border-subtle: #222228;
-  --border-strong: #3a3a45;
-  --text: #ececf1;
-  --text-secondary: #a0a0b0;
-  --text-faint: #5c5c6d;
-  --text-muted: #6e6e80;
-  --primary: #5B8DEF;
-  --primary-hover: #4a7de0;
-  --primary-bg: rgba(91, 141, 239, 0.12);
-  --accent: #5B8DEF;
-  --accent-hover: #4a7de0;
-  --accent-bg: rgba(91, 141, 239, 0.12);
-  --success: #32d583;
-  --success-bg: rgba(50, 213, 131, 0.12);
-  --warning: #f5a623;
-  --warning-bg: rgba(245, 166, 35, 0.12);
-  --danger: #ec5f5f;
-  --danger-bg: rgba(236, 95, 95, 0.12);
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
-  --shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
-  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-</style>
 <style scoped>
 .app-layout {
   display: flex;
@@ -465,61 +475,114 @@ watch(() => route.name, async (name) => {
 
 /* ── Header ── */
 .header {
-  height: 52px;
-  background: var(--surface-2);
+  height: 56px;
+  background: var(--surface-1);
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  padding: 0 16px;
-  gap: 6px;
+  padding: 0 20px;
+  gap: 24px;
   flex-shrink: 0;
   z-index: 100;
 }
+
 .header-logo {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
   white-space: nowrap;
-  letter-spacing: -0.24px;
 }
+
+.logo-icon { font-size: 18px; }
+.logo-text { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -0.2px; }
 .version-badge {
   font-size: 10px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-faint);
   background: var(--surface-3);
-  padding: 1px 5px;
+  padding: 1px 6px;
   border-radius: 4px;
-  margin-left: 4px;
 }
+
+.header-project-switcher {
+  min-width: 180px;
+}
+
+.project-select {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: 13px;
+  width: 100%;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.project-select:hover { border-color: var(--border-strong); color: var(--text); }
+.project-select:focus { outline: none; border-color: var(--primary); }
+
 .header-tabs {
   display: flex;
-  gap: 2px;
-  margin-left: 20px;
-  overflow-x: auto;
+  gap: 4px;
+  height: 100%;
+  align-items: center;
 }
+
 .header-tab {
-  padding: 6px 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
   border-radius: var(--radius-sm);
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-faint);
+  color: var(--text-secondary);
   cursor: pointer;
-  white-space: nowrap;
   transition: all 0.12s;
-  border: 1px solid transparent;
   background: transparent;
-  font-family: inherit;
+  border: none;
 }
-.header-tab:hover { color: var(--text-secondary); background: var(--surface-3); }
-.header-tab.active {
-  color: var(--text);
-  background: var(--surface-3);
-  border-color: var(--border-strong);
-}
-.header-spacer { flex: 1; }
-.header-actions { display: flex; gap: 8px; align-items: center; }
 
-/* ── Layout ── */
+.header-tab:hover { background: var(--surface-2); color: var(--text); }
+.header-tab.active { background: var(--surface-3); color: var(--text); }
+
+.tab-icon { font-size: 14px; opacity: 0.8; }
+
+.header-spacer { flex: 1; }
+
+.header-actions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.user-avatar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.user-avatar-wrap:hover { background: var(--surface-2); }
+
+.user-avatar {
+  background: var(--primary-bg) !important;
+  color: var(--primary) !important;
+  font-weight: 700;
+}
+
+.user-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* ── Layout & Sidebar ── */
 .layout {
   display: flex;
   flex: 1;
@@ -527,104 +590,104 @@ watch(() => route.name, async (name) => {
   overflow: hidden;
 }
 
-/* ── Sidebar ── */
 .sidebar {
-  width: 220px;
-  background: var(--surface-2);
+  width: 240px;
+  background: var(--surface-1);
   border-right: 1px solid var(--border);
-  padding: 0;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-scroll {
+  flex: 1;
   overflow-y: auto;
+  padding: 12px;
 }
+
 .sidebar-section {
-  padding: 16px 12px 8px;
-  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 24px;
 }
-.sidebar-section:last-child { border-bottom: none; }
+
 .sidebar-title {
   font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
   color: var(--text-faint);
   text-transform: uppercase;
-  padding: 0 8px 8px;
+  padding: 0 10px 10px;
 }
+
 .sidebar-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
+  gap: 10px;
+  padding: 8px 10px;
   border-radius: var(--radius-sm);
   font-size: 13px;
-  font-weight: 400;
+  font-weight: 500;
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.12s;
+  margin-bottom: 2px;
 }
-.sidebar-item:hover { background: var(--surface-3); color: var(--text); }
+
+.sidebar-item:hover { background: var(--surface-2); color: var(--text); }
 .sidebar-item.active { background: var(--primary-bg); color: var(--primary); }
-.sidebar-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+.item-icon { font-size: 14px; width: 16px; text-align: center; }
+.item-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.sidebar-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .dot-green { background: var(--success); }
-.dot-yellow { background: var(--warning); }
-.dot-red { background: var(--danger); }
-.dot-gray { background: var(--text-faint); }
-.project-status {
-  margin-left: auto;
-  font-size: 10px;
-  color: var(--text-faint);
-}
-.project-item:hover .project-item-actions {
-  opacity: 1;
-}
+
+.project-item:hover .project-item-actions { opacity: 1; }
 .project-item-actions {
   opacity: 0;
   font-size: 11px;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: opacity 0.15s;
+  padding: 2px;
+  border-radius: 4px;
+  transition: all 0.12s;
 }
+.project-item-actions:hover { background: var(--surface-4); }
 
-/* ── Main Content ── */
+.add-project-btn { color: var(--primary); font-weight: 600; }
+.add-project-btn:hover { background: var(--primary-bg); }
+
+.role-info { padding: 4px 10px; }
+.role-row { margin-bottom: 8px; }
+
+.role-badge {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+}
+.role-admin { background: rgba(167,139,250,0.15); color: #a78bfa; }
+.role-member { background: var(--primary-bg); color: var(--primary); }
+.role-owner { background: rgba(251,191,36,0.15); color: #fbbf24; }
+.role-viewer { background: var(--surface-3); color: var(--text-faint); }
+
+/* ── Main ── */
 .main {
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
   min-width: 0;
+  background: var(--bg);
 }
 
-/* Role badges */
-.role-badge {
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 6px;
-  font-weight: 590;
-}
-.role-admin { background: rgba(167,139,250,0.15); color: #7c5af5; }
-.role-member { background: var(--primary-bg); color: var(--primary); }
-.role-owner { background: rgba(251,191,36,0.15); color: #d97706; }
-.role-viewer { background: rgba(148,163,184,0.15); color: #64748b; }
-.role-viewer { background: var(--surface-4); color: var(--text-muted); }
+/* ── Forms ── */
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px; }
+.form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.modal-field { margin-bottom: 16px; }
 
-/* Modal fields */
-.modal-field { margin-bottom: 10px; }
-
-/* Log entry (used in smart schedule) */
-.log-entry {
-  background: var(--surface-4);
-  border-radius: var(--radius-md);
-  padding: 10px;
-  margin-bottom: 8px;
-  border-left: 3px solid var(--primary);
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
 }
-
-.project-select {
-  background: var(--surface-3);
-  border: 1px solid var(--border-strong);
-  color: var(--text-secondary);
-  border-radius: var(--radius-sm);
-  padding: 5px 10px;
-  font-size: 13px;
-  font-family: inherit;
-  cursor: pointer;
-}
-.project-select:focus { outline: none; border-color: var(--border-strong); background: var(--surface-5); }
 </style>

@@ -1,24 +1,30 @@
 <template>
   <div class="swimlane-view">
-    <div class="swimlane-header">
-      <span class="project-name">{{ projectStore.currentProject?.name || '请选择项目' }}</span>
-      <el-select v-model="viewDate" size="small" style="width: 200px">
-        <el-option label="近两周" :value="14" />
-        <el-option label="近一个月" :value="30" />
-        <el-option label="近三个月" :value="90" />
-      </el-select>
+    <div class="view-header">
+      <div class="header-left">
+        <h1 class="view-title">泳道图</h1>
+        <p class="view-subtitle">按成员视角平铺的任务时间轴</p>
+      </div>
+      <div class="header-right">
+        <span class="proj-label">{{ projectStore.currentProject?.name || '所有项目' }}</span>
+        <el-select v-model="viewDate" size="small" class="date-select">
+          <el-option label="近两周" :value="14" />
+          <el-option label="近一个月" :value="30" />
+          <el-option label="近三个月" :value="90" />
+        </el-select>
+      </div>
     </div>
 
     <div v-loading="taskStore.loading" class="swimlane-board" ref="boardRef">
-      <!-- 时间刻度 -->
+      <!-- Time Scale -->
       <div class="time-scale">
-        <div class="lane-label-spacer"></div>
+        <div class="lane-label-spacer">TEAM MEMBERS</div>
         <div class="time-ticks" ref="ticksRef">
           <span
             v-for="tick in timeTicks"
             :key="tick.date"
             class="tick"
-            :class="{ today: tick.isToday }"
+            :class="{ isToday: tick.isToday }"
             :style="{ width: `${tickWidth}px` }"
           >
             {{ tick.label }}
@@ -26,28 +32,28 @@
         </div>
       </div>
 
-      <!-- 泳道行 -->
+      <!-- Rows -->
       <div v-for="lane in swimLanes" :key="lane.memberId" class="swimlane-row">
         <div class="lane-label">
-          <el-avatar size="small" :style="{ background: 'var(--accent)', fontSize: '10px', color: '#fff' }">
+          <el-avatar :size="24" class="member-av">
             {{ lane.memberName?.slice(0, 1) }}
           </el-avatar>
           <span class="lane-name">{{ lane.memberName || '未分配' }}</span>
         </div>
 
-        <div class="lane-timeline" ref="timelineRef">
-          <!-- 时间格子背景 -->
+        <div class="lane-timeline">
+          <!-- Grid BG -->
           <div class="timeline-grid" :style="{ width: `${totalTicksWidth}px` }">
             <span
               v-for="tick in timeTicks"
               :key="tick.date"
               class="grid-cell"
-              :class="{ today: tick.isToday, weekend: tick.isWeekend }"
+              :class="{ isToday: tick.isToday, isWeekend: tick.isWeekend }"
               :style="{ width: `${tickWidth}px` }"
             ></span>
           </div>
 
-          <!-- 任务条 -->
+          <!-- Task Bars -->
           <div
             v-for="task in lane.tasks"
             :key="task.id"
@@ -55,35 +61,28 @@
             :class="[`status-${task.status.toLowerCase()}`]"
             :style="getTaskBarStyle(task)"
             @click="openTask(task)"
-            :title="task.title"
           >
-            <span class="task-bar-text">{{ task.title }}</span>
-            <span class="task-progress-bar" :style="{ width: `${task.progress}%` }"></span>
+            <div class="task-bar-content">
+              <span class="task-bar-title">{{ task.title }}</span>
+              <span class="task-bar-progress" :style="{ width: `${task.progress}%` }"></span>
+            </div>
           </div>
         </div>
       </div>
 
       <div v-if="!swimLanes.length" class="empty-state">
-        暂无泳道数据
+        <span class="empty-icon">🌊</span>
+        <p>当前项目下暂无任务数据</p>
       </div>
     </div>
 
-    <!-- 任务详情弹窗 -->
-    <el-dialog v-model="showDetail" title="任务详情" width="480px" :append-to-body="true">
-      <el-descriptions :column="1" border v-if="currentTask">
-        <el-descriptions-item label="任务名称">{{ currentTask.title }}</el-descriptions-item>
-        <el-descriptions-item label="状态">{{ statusLabel(currentTask.status) }}</el-descriptions-item>
-        <el-descriptions-item label="优先级">{{ currentTask.priority }}</el-descriptions-item>
-        <el-descriptions-item label="负责人">{{ currentTask.assigneeName || '未分配' }}</el-descriptions-item>
-        <el-descriptions-item label="开始日期">{{ currentTask.startDate || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="截止日期">{{ currentTask.endDate || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="进度">{{ currentTask.progress }}%</el-descriptions-item>
-        <el-descriptions-item label="描述">{{ currentTask.description || '-' }}</el-descriptions-item>
-      </el-descriptions>
-      <template #footer>
-        <el-button @click="showDetail = false">关闭</el-button>
-      </template>
-    </el-dialog>
+    <!-- Task Detail Drawer -->
+    <TaskDetailDrawer 
+      v-model:visible="showDrawer" 
+      :task-id="selectedTaskId" 
+      @updated="taskStore.fetchTasks(projectStore.currentProjectId)"
+      @deleted="taskStore.fetchTasks(projectStore.currentProjectId)"
+    />
   </div>
 </template>
 
@@ -92,25 +91,26 @@ import { ref, computed, onMounted } from 'vue'
 import { useProjectStore, useTaskStore, useMemberStore } from '@/stores'
 import type { Task } from '@/types'
 import dayjs from 'dayjs'
+import TaskDetailDrawer from '@/components/TaskDetailDrawer.vue'
 
 const projectStore = useProjectStore()
 const taskStore = useTaskStore()
 const memberStore = useMemberStore()
 
 const viewDate = ref(30)
-const tickWidth = 120 // 每天宽度 px（原型为 120px）
-const showDetail = ref(false)
-const currentTask = ref<Task | null>(null)
+const tickWidth = 140
+const showDrawer = ref(false)
+const selectedTaskId = ref<string | null>(null)
 
 const timeTicks = computed(() => {
   const ticks = []
-  const start = dayjs().subtract(3, 'day').startOf('day')
+  const start = dayjs().subtract(2, 'day').startOf('day')
   for (let i = 0; i < viewDate.value + 5; i++) {
     const d = start.add(i, 'day')
-    const weekDayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+    const weekMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
     ticks.push({
       date: d.format('YYYY-MM-DD'),
-      label: `${d.month() + 1}/${d.date()} ${weekDayNames[d.day()]}`,
+      label: `${d.month() + 1}/${d.date()} ${weekMap[d.day()]}`,
       isToday: d.isSame(dayjs(), 'day'),
       isWeekend: d.day() === 0 || d.day() === 6,
     })
@@ -126,220 +126,188 @@ const swimLanes = computed(() => {
   const lanes = members.map(m => ({
     memberId: m.memberId,
     memberName: m.nickname,
-    memberAvatar: m.avatar,
     tasks: tasks.filter(t => t.assigneeId === m.memberId),
   }))
-  // 加上未分配泳道
   const unassigned = tasks.filter(t => !t.assigneeId)
   if (unassigned.length) {
-    lanes.push({ memberId: 'unassigned', memberName: '未分配', memberAvatar: undefined, tasks: unassigned })
+    lanes.push({ memberId: 'unassigned', memberName: '未分配', tasks: unassigned })
   }
-  return lanes
+  return lanes.filter(l => l.tasks.length > 0)
 })
 
 function getTaskBarStyle(task: Task) {
   if (!task.startDate || !task.endDate) return { display: 'none' }
-  const start = dayjs().subtract(3, 'day').startOf('day')
+  const start = dayjs().subtract(2, 'day').startOf('day')
   const taskStart = dayjs(task.startDate).startOf('day')
   const taskEnd = dayjs(task.endDate).startOf('day')
-  const offset = Math.max(0, taskStart.diff(start, 'day'))
-  const duration = Math.max(1, taskEnd.diff(taskStart, 'day') + 1)
+  const offset = taskStart.diff(start, 'day')
+  const duration = taskEnd.diff(taskStart, 'day') + 1
   return {
-    left: `${offset * tickWidth}px`,
-    width: `${duration * tickWidth - 4}px`,
+    left: `${offset * tickWidth + 8}px`,
+    width: `${duration * tickWidth - 16}px`,
   }
-}
-
-function statusLabel(status: string) {
-  const map: Record<string, string> = {
-    TODO: '待办', IN_PROGRESS: '进行中', BLOCKED: '已阻塞', DONE: '已完成'
-  }
-  return map[status] || status
 }
 
 function openTask(task: Task) {
-  currentTask.value = task
-  showDetail.value = true
+  selectedTaskId.value = String(task.taskId || task.id)
+  showDrawer.value = true
 }
 
 onMounted(async () => {
-  // Tasks and members are fetched by App.vue on project load; just use the store data
+  if (projectStore.currentProjectId) {
+    await taskStore.fetchTasks(projectStore.currentProjectId)
+  }
 })
 </script>
 
 <style scoped>
 .swimlane-view {
+  padding: 24px;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  padding: 20px 24px;
-  gap: 16px;
-  overflow: auto;
-  background: #f7f8fc;
+  background: var(--bg);
 }
 
-/* Header */
-.swimlane-header {
+.view-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  background: #fff;
-  padding: 14px 20px;
-  border-radius: 10px;
-  border: 1px solid #e5e6eb;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  align-items: flex-end;
+  margin-bottom: 24px;
 }
-.project-name { font-weight: 600; font-size: 14px; color: #1f2329; }
 
-/* Board */
+.view-title { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.view-subtitle { font-size: 13px; color: var(--text-faint); }
+
+.header-right { display: flex; align-items: center; gap: 16px; }
+.proj-label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.date-select { width: 140px; }
+
 .swimlane-board {
   flex: 1;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   overflow: auto;
-  background: #fff;
-  border-radius: 10px;
-  border: 1px solid #e5e6eb;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-  max-height: 560px;
+  position: relative;
 }
 
-/* Time scale header */
 .time-scale {
   display: flex;
   position: sticky;
   top: 0;
-  z-index: 10;
-  background: #fff;
-  border-bottom: 1px solid #e5e6eb;
-  min-width: 1080px;
+  z-index: 20;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
 }
+
 .lane-label-spacer {
-  width: 180px;
-  min-width: 180px;
-  border-right: 1px solid #e5e6eb;
-  padding: 10px 14px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #86909c;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.time-ticks { display: flex; }
-.tick {
-  width: 120px;
-  flex-shrink: 0;
-  text-align: center;
-  font-size: 12px;
-  font-weight: 500;
-  color: #646a73;
-  padding: 10px 0;
-  border-right: 1px solid #f1f2f5;
-  font-variant-numeric: tabular-nums;
-}
-.tick.today { color: #3370ff; background: rgba(51,112,255,0.06); }
-
-/* Swimlane rows */
-.swimlane-row {
-  display: flex;
-  min-width: 1080px;
-  height: 64px;
-  border-bottom: 1px solid #f1f2f5;
-  transition: background 0.15s;
-}
-.swimlane-row:last-child { border-bottom: none; }
-.swimlane-row:hover { background: #f7f8fc; }
-
-/* Lane label (sticky left) */
-.lane-label {
-  width: 180px;
-  min-width: 180px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 14px;
-  border-right: 1px solid #e5e6eb;
+  width: 200px;
+  min-width: 200px;
+  padding: 12px 20px;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-faint);
+  letter-spacing: 1px;
+  border-right: 1px solid var(--border);
+  background: var(--surface-2);
   position: sticky;
   left: 0;
-  background: #fff;
-  z-index: 5;
+  z-index: 21;
 }
-.swimlane-row:hover .lane-label { background: #f7f8fc; }
-.lane-name { font-size: 13px; font-weight: 500; color: #1f2329; }
 
-/* Timeline */
-.lane-timeline {
-  flex: 1;
-  position: relative;
-  height: 64px;
-  display: flex;
-}
-.timeline-grid {
-  display: flex;
-  height: 100%;
-  position: absolute;
-  top: 0;
-  left: 0;
-}
-.grid-cell {
-  width: 120px;
+.time-ticks { display: flex; }
+.tick {
   flex-shrink: 0;
-  height: 100%;
-  border-right: 1px solid #f1f2f5;
+  padding: 12px 0;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-faint);
+  border-right: 1px solid var(--border-subtle);
+  font-variant-numeric: tabular-nums;
 }
-.grid-cell.today { background: rgba(51,112,255,0.05); }
-.grid-cell.weekend { background: #fafafa; }
+.tick.isToday { color: var(--primary); background: var(--primary-bg); }
 
-/* Task bars */
-.task-bar {
-  position: absolute;
-  top: 16px;
-  height: 32px;
-  border-radius: 6px;
+.swimlane-row {
+  display: flex;
+  border-bottom: 1px solid var(--border-subtle);
+  height: 72px;
+}
+
+.lane-label {
+  width: 200px;
+  min-width: 200px;
+  padding: 0 20px;
   display: flex;
   align-items: center;
-  padding: 0 10px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-  transition: box-shadow 0.15s, transform 0.12s;
-  min-width: 20px;
-}
-.task-bar:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  transform: translateY(-1px);
-}
-.task-bar.status-todo    { background: #3370ff; }
-.task-bar.status-in_progress { background: #00b42a; }
-.task-bar.status-blocked { background: #f53f3f; }
-.task-bar.status-done    { background: #cad2ff; color: #2f50b8; box-shadow: none; }
-.task-bar.status-done:hover { box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
-.task-bar-text {
-  position: relative;
-  z-index: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.task-progress-bar {
-  position: absolute;
+  gap: 12px;
+  border-right: 1px solid var(--border);
+  background: var(--surface-1);
+  position: sticky;
   left: 0;
-  top: 0;
-  height: 100%;
-  background: rgba(255,255,255,0.25);
-  border-radius: 6px;
-  z-index: 0;
-  transition: width 0.3s;
+  z-index: 10;
 }
-.task-bar.status-done .task-progress-bar { background: rgba(255,255,255,0.4); }
 
-.empty-state {
-  text-align: center;
-  padding: 48px;
-  color: #86909c;
-  font-size: 13px;
+.member-av { background: var(--surface-3) !important; color: var(--text-secondary) !important; font-weight: 700; font-size: 11px; border: 1px solid var(--border); }
+.lane-name { font-size: 13px; font-weight: 600; color: var(--text); }
+
+.lane-timeline { flex: 1; position: relative; }
+.timeline-grid { display: flex; height: 100%; position: absolute; top: 0; left: 0; }
+.grid-cell { flex-shrink: 0; border-right: 1px solid var(--border-subtle); }
+.grid-cell.isToday { background: rgba(91, 141, 239, 0.03); }
+.grid-cell.isWeekend { background: rgba(0, 0, 0, 0.1); }
+
+.task-bar {
+  position: absolute;
+  top: 18px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-strong);
+  cursor: pointer;
+  transition: all 0.2s;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  z-index: 5;
 }
+
+.task-bar:hover { transform: scaleY(1.05); border-color: var(--text-muted); box-shadow: var(--shadow-md); z-index: 6; }
+
+.task-bar-content { width: 100%; height: 100%; display: flex; align-items: center; padding: 0 12px; position: relative; }
+.task-bar-title { font-size: 12px; font-weight: 600; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: relative; z-index: 2; }
+.task-bar-progress { position: absolute; left: 0; top: 0; height: 100%; opacity: 0.2; z-index: 1; transition: width 0.3s; }
+
+.status-todo .task-bar-progress { background: var(--text-faint); }
+.status-in_progress .task-bar-progress { background: var(--primary); }
+.status-done .task-bar-progress { background: var(--success); }
+.status-blocked .task-bar-progress { background: var(--danger); }
+
+.detail-wrap { display: flex; flex-direction: column; gap: 20px; }
+.detail-header { border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.detail-status { font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; margin-bottom: 8px; display: inline-block; }
+.detail-title { font-size: 18px; font-weight: 700; color: var(--text); margin: 0; }
+
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.detail-item { display: flex; flex-direction: column; gap: 4px; }
+.detail-item label { font-size: 11px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; }
+.detail-item span { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+
+.p-badge { padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+.p-urgent { background: var(--danger-bg); color: var(--danger); }
+.p-high { background: var(--warning-bg); color: var(--warning); }
+.p-medium { background: var(--primary-bg); color: var(--primary); }
+.p-low { background: var(--surface-3); color: var(--text-faint); }
+
+.detail-desc { border-top: 1px solid var(--border); padding-top: 16px; }
+.detail-desc label { font-size: 11px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; margin-bottom: 8px; display: block; }
+.detail-desc p { font-size: 13px; line-height: 1.6; color: var(--text-secondary); margin: 0; }
+
+.empty-state { display: flex; flex-direction: column; align-items: center; padding: 100px 0; color: var(--text-faint); }
+.empty-icon { font-size: 40px; margin-bottom: 16px; opacity: 0.4; }
+
+.status-todo { color: var(--text-faint); border-color: var(--text-faint); }
+.status-in_progress { color: var(--primary); border-color: var(--primary); }
+.status-done { color: var(--success); border-color: var(--success); }
+.status-blocked { color: var(--danger); border-color: var(--danger); }
 </style>
