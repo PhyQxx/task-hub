@@ -249,21 +249,43 @@ html, body {
   font-weight: 600 !important;
 }
 
+/* 按钮通用修复：确保在明亮模式下可见 */
 .el-button {
-  --el-button-bg-color: var(--surface-2) !important;
+  --el-button-bg-color: var(--surface-3) !important;
   --el-button-border-color: var(--border-strong) !important;
   --el-button-text-color: var(--text-secondary) !important;
 }
 
-.el-button:hover {
-  --el-button-hover-bg-color: var(--surface-3) !important;
-  --el-button-hover-text-color: var(--text) !important;
+/* 修正 link 类型的按钮，背景必须透明 */
+.el-button.is-link {
+  background-color: transparent !important;
+  border-color: transparent !important;
+  --el-button-bg-color: transparent !important;
+  --el-button-border-color: transparent !important;
 }
 
-.el-button--primary {
+.el-button.is-link:hover {
+  background-color: var(--surface-3) !important;
+}
+
+.el-button--primary:not(.is-link) {
   --el-button-bg-color: var(--primary) !important;
   --el-button-border-color: var(--primary) !important;
   --el-button-text-color: #fff !important;
+}
+
+.el-button--primary.is-link {
+  --el-button-text-color: var(--primary) !important;
+}
+
+.el-button--danger:not(.is-link) {
+  --el-button-bg-color: var(--danger) !important;
+  --el-button-border-color: var(--danger) !important;
+  --el-button-text-color: #fff !important;
+}
+
+.el-button--danger.is-link {
+  --el-button-text-color: var(--danger) !important;
 }
 
 .el-input__wrapper, .el-textarea__inner {

@@ -44,6 +44,24 @@ public class MemberController {
         ));
     }
 
+    @PostMapping
+    public ApiResponse<Member> create(@RequestBody Member member) {
+        return ApiResponse.success(memberService.create(member));
+    }
+
+    @PutMapping("/{memberId}")
+    public ApiResponse<Void> update(@PathVariable String memberId, @RequestBody Member member) {
+        member.setMemberId(memberId);
+        memberService.update(member);
+        return ApiResponse.success(null);
+    }
+
+    @DeleteMapping("/{memberId}")
+    public ApiResponse<Void> delete(@PathVariable String memberId) {
+        memberService.delete(memberId);
+        return ApiResponse.success(null);
+    }
+
     // 获取成员的任务列表
     @GetMapping("/{memberId}/tasks")
     public ApiResponse<List<Task>> memberTasks(@PathVariable String memberId) {

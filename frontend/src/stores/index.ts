@@ -221,21 +221,36 @@ export const useNotificationStore = defineStore('notification', () => {
 })
 
 export const useUIStore = defineStore('ui', () => {
-  const theme = ref<'light' | 'dark'>( (localStorage.getItem('theme') as any) || 'light')
+  const theme = ref<'light' | 'dark' | 'auto'>( (localStorage.getItem('theme') as any) || 'auto')
 
   function toggleTheme() {
-    theme.value = theme.value === 'light' ? 'dark' : 'light'
+    if (theme.value === 'light') theme.value = 'dark'
+    else if (theme.value === 'dark') theme.value = 'auto'
+    else theme.value = 'light'
     applyTheme()
   }
 
   function applyTheme() {
     localStorage.setItem('theme', theme.value)
-    if (theme.value === 'dark') {
+    let effectiveTheme: 'light' | 'dark' = 'light'
+
+    if (theme.value === 'auto') {
+      effectiveTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    } else {
+      effectiveTheme = theme.value
+    }
+
+    if (effectiveTheme === 'dark') {
       document.documentElement.setAttribute('data-theme', 'dark')
     } else {
       document.documentElement.removeAttribute('data-theme')
     }
   }
+
+  // Listen for system theme changes
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (theme.value === 'auto') applyTheme()
+  })
 
   return { theme, toggleTheme, applyTheme }
 })

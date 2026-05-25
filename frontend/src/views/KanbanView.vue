@@ -35,10 +35,14 @@
       </div>
     </div>
 
-    <!-- Board -->
     <SkeletonBoard v-if="taskStore.loading" type="kanban" :cols="columns.length" />
     <div v-else class="kanban-board" :style="{ gridTemplateColumns: `repeat(${columns.length}, 1fr)` }">
-      <div v-for="col in columns" :key="col.key" class="kanban-col">
+      <div 
+        v-for="col in columns" 
+        :key="col.key" 
+        class="kanban-col"
+        :class="{ 'is-drag-over': dragOverCol === col.key }"
+      >
         <div class="kanban-col-header">
           <el-avatar v-if="dimension === 'member' && col.key !== 'unassigned'" :size="20" class="col-av">
             {{ col.label.slice(0,1) }}
@@ -271,6 +275,7 @@ function priorityLabel(p: string) {
 // Drag & Drop
 const dragTaskId = ref<string | null>(null)
 const dragFromCol = ref<string | null>(null)
+const dragOverCol = ref<string | null>(null)
 
 function onDragStart(task: any, fromCol: string) {
   dragTaskId.value = String(task.taskId || task.id)
@@ -279,8 +284,13 @@ function onDragStart(task: any, fromCol: string) {
 function onDragEnd() {
   dragTaskId.value = null
   dragFromCol.value = null
+  dragOverCol.value = null
+}
+function onDragOver(colKey: string) {
+  dragOverCol.value = colKey
 }
 async function onDrop(toCol: string) {
+  dragOverCol.value = null
   if (!dragTaskId.value || !dragFromCol.value) return
   if (dragFromCol.value === toCol) return
   
@@ -318,7 +328,12 @@ function openTask(task?: Task) {
 async function handleSave() {
   if (!form.value.title) { ElMessage.warning('请输入任务名称'); return }
   try {
-    await taskApi.create({ projectId: projectStore.currentProjectId, ...form.value })
+    const data = {
+      projectId: projectStore.currentProjectId,
+      ...form.value,
+      assigneeId: form.value.assigneeId || undefined
+    }
+    await taskApi.create(data)
     showEdit.value = false
     await taskStore.fetchTasks(projectStore.currentProjectId)
   } catch(e) { ElMessage.error('保存失败') }
@@ -463,6 +478,13 @@ watch(() => projectStore.currentProjectId, (pid) => {
   border: 1px solid var(--border);
   min-width: 280px;
   max-height: 100%;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.kanban-col.is-drag-over {
+  background: var(--surface-3);
+  border-color: var(--primary);
+  transform: scale(1.01);
 }
 
 .kanban-col-header {

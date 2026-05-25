@@ -54,6 +54,9 @@ export const memberApi = {
   loadTrend: (memberId: string) => client.get<ApiResponse<any[]>>(`/members/${memberId}/load-trend`),
   roles: () => client.get<ApiResponse<string[]>>('/members/roles'),
   memberTasks: (memberId: string) => client.get<ApiResponse<Task[]>>(`/members/${memberId}/tasks`),
+  create: (data: Partial<Member>) => client.post<ApiResponse<Member>>('/members', data),
+  update: (id: string, data: Partial<Member>) => client.put<ApiResponse<void>>(`/members/${id}`, data),
+  delete: (id: string) => client.delete<ApiResponse<void>>(`/members/${id}`),
 }
 
 export const workLogApi = {

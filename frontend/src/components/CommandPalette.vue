@@ -142,8 +142,30 @@ function handleKeydown(e: KeyboardEvent) {
   if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
     e.preventDefault()
     visible.value = !visible.value
+    return
   }
-  if (e.key === 'Escape') close()
+  
+  if (e.key === 'Escape') {
+    close()
+    return
+  }
+
+  // Instant shortcuts when query is empty
+  if (visible.value && !query.value) {
+    const key = e.key.toLowerCase()
+    if (key === 'n') {
+      e.preventDefault()
+      window.dispatchEvent(new CustomEvent('cmd-new-task'))
+      close()
+    } else if (key === 't') {
+      e.preventDefault()
+      uiStore.toggleTheme()
+      close()
+    } else if (key === 'r') {
+      e.preventDefault()
+      window.location.reload()
+    }
+  }
 }
 
 watch(visible, (v) => {

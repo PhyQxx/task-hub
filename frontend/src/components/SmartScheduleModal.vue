@@ -27,12 +27,14 @@
           <div class="schedule-task">{{ item.taskName }}</div>
           <div class="schedule-recommend">
             推荐执行人：<strong>{{ item.nickname || item.assigneeId }}</strong>
-            <span class="schedule-load">({{ item.reason }})</span>
+            <span class="reason-badge" :class="reasonBadgeClass(item.reason)">
+              {{ item.reason }}
+            </span>
           </div>
           <div class="schedule-score">
-            得分：<strong>{{ item.score }} / 100</strong>
-            <span v-if="item.score >= 90" class="schedule-flag">✅ 最优</span>
-            <span v-else-if="item.score < 70" class="schedule-flag">⚠ 风险提示</span>
+            匹配度：<strong :class="scoreClass(item.score)">{{ item.score }}%</strong>
+            <span v-if="item.score >= 90" class="status-tag best">最优匹配</span>
+            <span v-else-if="item.score < 70" class="status-tag risk">存在过载风险</span>
           </div>
         </div>
       </div>
@@ -126,6 +128,19 @@ async function applyAll() {
     applying.value = false
   }
 }
+
+function reasonBadgeClass(reason: string) {
+  if (reason.includes('均衡') || reason.includes('负载')) return 'bg-success'
+  if (reason.includes('匹配') || reason.includes('技能')) return 'bg-primary'
+  if (reason.includes('顺延')) return 'bg-warning'
+  return 'bg-secondary'
+}
+
+function scoreClass(score: number) {
+  if (score >= 90) return 'text-success'
+  if (score < 70) return 'text-danger'
+  return ''
+}
 </script>
 
 <style scoped>
@@ -135,17 +150,43 @@ async function applyAll() {
 .modal-title { font-size: 15px; font-weight: 700; color: var(--text); flex: 1; }
 .modal-close { background: none; border: none; font-size: 20px; color: var(--text-faint); cursor: pointer; }
 .modal-desc { font-size: 12px; color: var(--text-faint); margin-bottom: 16px; }
-.schedule-list { display: flex; flex-direction: column; gap: 10px; }
+
+.schedule-list { display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto; padding-right: 4px; }
+
 .schedule-item {
-  background: var(--surface-4);
-  border-radius: var(--radius-md);
-  padding: 12px;
-  border-left: 3px solid var(--primary);
+  background: var(--surface-2);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  border: 1px solid var(--border-strong);
+  transition: all 0.2s;
 }
-.schedule-task { font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 4px; }
-.schedule-recommend { font-size: 12px; color: var(--text-faint); margin-bottom: 2px; }
-.schedule-score { font-size: 12px; color: var(--text-faint); }
-.schedule-load { margin-left: 4px; }
-.schedule-flag { margin-left: 8px; }
-.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+
+.schedule-item:hover { border-color: var(--primary); transform: translateX(2px); }
+
+.schedule-task { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+.schedule-recommend { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+
+.reason-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+.bg-success { background: var(--success); }
+.bg-primary { background: var(--primary); }
+.bg-warning { background: var(--warning); }
+.bg-secondary { background: var(--text-faint); }
+
+.schedule-score { font-size: 11px; color: var(--text-faint); display: flex; align-items: center; gap: 8px; }
+.text-success { color: var(--success) !important; }
+.text-danger { color: var(--danger) !important; }
+
+.status-tag { font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 10px; }
+.status-tag.best { background: var(--success-bg); color: var(--success); }
+.status-tag.risk { background: var(--danger-bg); color: var(--danger); }
+
+.modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-subtle); }
 </style>

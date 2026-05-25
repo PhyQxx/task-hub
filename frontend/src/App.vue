@@ -18,11 +18,11 @@
 
       <nav class="header-tabs">
         <button
-          v-for="tab in tabs"
+          v-for="tab in visibleTabs"
           :key="tab.key"
           class="header-tab"
           :class="{ active: activeTab === tab.key }"
-          @click="$router.push('/' + tab.key)"
+          @click="$router.push(tab.path)"
         >
           <span class="tab-icon">{{ tab.icon }}</span>
           <span class="tab-label">{{ tab.label }}</span>
@@ -58,6 +58,42 @@
       <!-- Sidebar -->
       <aside class="sidebar">
         <div class="sidebar-scroll">
+          <div v-if="isAdmin" class="sidebar-section admin-section">
+            <div class="sidebar-title">⚙️ 系统管理</div>
+            <div
+              class="sidebar-item"
+              :class="{ active: activeTab === 'admin-dashboard' }"
+              @click="$router.push('/admin/dashboard')"
+            >
+              <span class="item-icon">📈</span>
+              <span class="item-label">全站统计</span>
+            </div>
+            <div
+              class="sidebar-item"
+              :class="{ active: activeTab === 'admin-project-manage' }"
+              @click="$router.push('/admin/projects')"
+            >
+              <span class="item-icon">📁</span>
+              <span class="item-label">项目管理</span>
+            </div>
+            <div
+              class="sidebar-item"
+              :class="{ active: activeTab === 'admin-task-manage' }"
+              @click="$router.push('/admin/tasks')"
+            >
+              <span class="item-icon">📋</span>
+              <span class="item-label">任务监控</span>
+            </div>
+            <div
+              class="sidebar-item"
+              :class="{ active: activeTab === 'admin-member-manage' }"
+              @click="$router.push('/admin/members')"
+            >
+              <span class="item-icon">👥</span>
+              <span class="item-label">成员权限</span>
+            </div>
+          </div>
+
           <div class="sidebar-section">
             <div class="sidebar-title">快捷筛选</div>
             <div
@@ -88,22 +124,6 @@
             <div v-if="isAdmin" class="sidebar-item add-project-btn" @click="openCreateProject">
               <span class="item-icon">+</span>
               <span class="item-label">新建项目</span>
-            </div>
-          </div>
-
-          <div class="sidebar-section">
-            <div class="sidebar-title">👤 当前角色</div>
-            <div class="role-info">
-              <div class="role-row">
-                <span class="role-badge" :class="isAdmin ? 'role-admin' : 'role-member'">
-                  {{ isAdmin ? '👑 管理员' : '👤 用户' }}
-                </span>
-              </div>
-              <div v-if="currentProjectId && authStore.projectRole" class="role-row">
-                <span class="role-badge" :class="'role-' + authStore.projectRole">
-                  {{ projectRoleLabel }}
-                </span>
-              </div>
             </div>
           </div>
         </div>
@@ -255,13 +275,15 @@ function handleGlobalEvents(e: any) {
 }
 
 const tabs = [
-  { key: 'gantt', label: '甘特图', icon: '📊' },
-  { key: 'kanban', label: '看板', icon: '📋' },
-  { key: 'swimlane', label: '泳道', icon: '🌊' },
-  { key: 'member', label: '成员', icon: '👥' },
-  { key: 'milestone', label: '里程碑', icon: '🏁' },
-  { key: 'worklog', label: '日志', icon: '📝' },
+  { key: 'gantt', label: '甘特图', icon: '📊', path: '/gantt' },
+  { key: 'kanban', label: '看板', icon: '📋', path: '/kanban' },
+  { key: 'swimlane', label: '泳道', icon: '🌊', path: '/swimlane' },
+  { key: 'member', label: '成员', icon: '👥', path: '/member' },
+  { key: 'milestone', label: '里程碑', icon: '🏁', path: '/milestone' },
+  { key: 'worklog', label: '日志', icon: '📝', path: '/worklog' },
 ]
+
+const visibleTabs = computed(() => tabs)
 
 const filters = [
   { key: 'mine', label: '我的任务', icon: '🐛' },
@@ -326,11 +348,17 @@ function selectProject(id: string) {
   projectStore.selectProject(id)
   currentProjectId.value = id
   fetchProjectRole(id)
+  if (id && route.name?.toString().startsWith('admin')) {
+    router.push('/gantt')
+  }
 }
 
 function onProjectChange() {
   projectStore.selectProject(currentProjectId.value)
   fetchProjectRole(currentProjectId.value)
+  if (currentProjectId.value && route.name?.toString().startsWith('admin')) {
+    router.push('/gantt')
+  }
 }
 
 function openCreateProject() {
@@ -690,4 +718,6 @@ watch(() => route.name, async (name) => {
   padding-top: 16px;
   border-top: 1px solid var(--border);
 }
+
+.admin-section { border-bottom: 1px solid var(--border-subtle); padding-bottom: 16px; margin-bottom: 16px; }
 </style>

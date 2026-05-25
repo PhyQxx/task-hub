@@ -28,7 +28,15 @@ public class MemberService {
     }
 
     public void update(Member member) {
-        memberMapper.updateById(member);
+        Member existing = memberMapper.selectOne(new QueryWrapper<Member>().eq("member_id", member.getMemberId()));
+        if (existing != null) {
+            if (member.getNickname() != null) existing.setNickname(member.getNickname());
+            if (member.getRole() != null) existing.setRole(member.getRole());
+            if (member.getPhone() != null) existing.setPhone(member.getPhone());
+            if (member.getEmail() != null) existing.setEmail(member.getEmail());
+            if (member.getWeeklyCapacity() != null) existing.setWeeklyCapacity(member.getWeeklyCapacity());
+            memberMapper.updateById(existing);
+        }
     }
 
     public void delete(String memberId) {
