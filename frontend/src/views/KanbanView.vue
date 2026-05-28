@@ -391,7 +391,7 @@ async function handleBatchUpdate(data: any) {
     ElMessage.success('批量更新成功')
     selectedTasks.value.clear()
     showBatchStatus.value = false
-    showBatchAssign = false
+    showBatchAssign.value = false
     await taskStore.fetchTasks(projectStore.currentProjectId)
   } catch { ElMessage.error('部分任务更新失败') }
   finally { batchLoading.value = false }

@@ -232,13 +232,9 @@ export const useUIStore = defineStore('ui', () => {
 
   function applyTheme() {
     localStorage.setItem('theme', theme.value)
-    let effectiveTheme: 'light' | 'dark' = 'light'
-
-    if (theme.value === 'auto') {
-      effectiveTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-    } else {
-      effectiveTheme = theme.value
-    }
+    const effectiveTheme = theme.value === 'auto'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : theme.value
 
     if (effectiveTheme === 'dark') {
       document.documentElement.setAttribute('data-theme', 'dark')
